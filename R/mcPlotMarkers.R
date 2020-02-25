@@ -2,6 +2,7 @@ mcPlotMarkers <- function (seurat_obj, marker_table, n_genes = 100) {
   if (DefaultAssay(obj_integrated) != "RNA") {
     stop("Default assay is not RNA")
   }
+  
   dir.create(figurePath("top-cluster-markers/"))
   
   cell_names <- as.character(unique(Idents(seurat_obj)))
