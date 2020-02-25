@@ -1,5 +1,8 @@
 mcFindMarkers <- function(seurat_obj,
   save_raw = TRUE, p_val_cutoff = 0.05, cores = 10) {
+  if (DefaultAssay(obj_integrated) != "RNA") {
+  stop("Default assay is not RNA")
+  }
 
   cell_names <- unique(Idents(seurat_obj))
   n_clust <- seq_along(unique(Idents(seurat_obj)))
