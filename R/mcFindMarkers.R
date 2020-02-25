@@ -11,7 +11,7 @@ mcFindMarkers <- function(seurat_obj,
       ident1 <- cell_names[i]
       ident2 <- cell_names[cell_names != cell_names[i]]
       
-      table <- Seurat::FindMarkers(seurat_obj,
+      table <- FindMarkers(seurat_obj,
         ident.1 = ident1, ident.2 = ident2, only.pos = TRUE)
       table$Gene.name.uniq <- rownames(table)
       table$cell.type.ident <- rep(cell_names[i], nrow(table))
@@ -32,7 +32,8 @@ mcFindMarkers <- function(seurat_obj,
   marker_subset <- marker_subset[(order(marker_subset$cell.type.ident,
     -1 * (marker_subset$pete_score))),]
 
-  marker_table <- inner_join(marker_subset, gene_info, by = "Gene.name.uniq")
+  marker_table <- dplyr::inner_join(
+    marker_subset, gene_info, by = "Gene.name.uniq")
   
   print("table dimensions ")
   print(dim(marker_table))
