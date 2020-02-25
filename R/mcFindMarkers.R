@@ -1,6 +1,6 @@
 mcFindMarkers <- function(seurat_obj,
   save_raw = TRUE, p_val_cutoff = 0.05, cores = 10) {
-  if (DefaultAssay(obj_integrated) != "RNA") {
+  if (DefaultAssay(seurat_obj) != "RNA") {
   stop("Default assay is not RNA")
   }
 
