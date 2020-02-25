@@ -14,7 +14,7 @@ mcFindMarkers <- function(seurat_obj,
       table <- FindMarkers(seurat_obj,
         ident.1 = ident1, ident.2 = ident2, only.pos = TRUE)
       table$Gene.name.uniq <- rownames(table)
-      table$cell.type.ident <- rep(cell_names[i], nrow(table))
+      table$cluster <- rep(cell_names[i], nrow(table))
       return(table)
     })
 
@@ -29,7 +29,7 @@ mcFindMarkers <- function(seurat_obj,
   
   marker_subset$pete_score <- marker_subset$pct.1 *
     marker_subset$avg_logFC * (marker_subset$pct.1 / marker_subset$pct.2)
-  marker_subset <- marker_subset[(order(marker_subset$cell.type.ident,
+  marker_subset <- marker_subset[(order(marker_subset$cluster,
     -1 * (marker_subset$pete_score))),]
 
   marker_table <- dplyr::inner_join(
@@ -38,7 +38,7 @@ mcFindMarkers <- function(seurat_obj,
   print("table dimensions ")
   print(dim(marker_table))
   print("markers per cluster")
-  print(table(marker_table$cell.type.ident))
+  print(table(marker_table$cluster))
   
   return(marker_table)
 }
