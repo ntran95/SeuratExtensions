@@ -28,7 +28,7 @@ mcFindMarkers <- function(seurat_obj,
   }
 
   marker_results <- dplyr::bind_rows(marker_results)
-  marker_subset <- markers[markers$p_val < p_val_cutoff,]
+  marker_subset <- marker_results[marker_results$p_val < p_val_cutoff,]
   
   marker_subset$pete_score <- marker_subset$pct.1 *
     marker_subset$avg_logFC * (marker_subset$pct.1 / marker_subset$pct.2)

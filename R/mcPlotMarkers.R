@@ -1,5 +1,5 @@
 mcPlotMarkers <- function (seurat_obj, marker_table, n_genes = 100) {
-  if (DefaultAssay(obj_integrated) != "RNA") {
+  if (DefaultAssay(seurat_obj) != "RNA") {
     stop("Default assay is not RNA")
   }
   
