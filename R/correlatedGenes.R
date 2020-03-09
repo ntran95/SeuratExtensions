@@ -1,5 +1,6 @@
 corrleatedGenes <- function(seurat_obj, goi,
-  cell_type = unique(Idents(seurat_obj)), condition = "homeo", n_results = 200) {
+  cell_type = unique(Idents(seurat_obj)),
+  condition = "homeo", n_results = 200) {
   
   if (length(goi) > 1) {
     stop("Please enter a single gene")
