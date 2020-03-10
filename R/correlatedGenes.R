@@ -1,6 +1,6 @@
 corrleatedGenes <- function(seurat_obj, goi,
   cell_type = unique(Idents(seurat_obj)),
-  condition = "homeo", n_results = 200) {
+  condition = "homeo", n_results = 200, verbose = TRUE) {
   
   if (length(goi) > 1) {
     stop("Please enter a single gene")
@@ -17,6 +17,9 @@ corrleatedGenes <- function(seurat_obj, goi,
   cor_vals <- sort(cor_vals, decreasing = TRUE)
   cor_vals <- c(head(cor_vals, n_results), tail(cor_vals, n_results))
   
-  return(data.frame(Gene.name.uniq = names(cor_vals),
-      correlation_coeff = cor_vals))
+  cor_df <- data.frame(Gene.name.uniq = names(cor_vals),
+      correlation_coeff = cor_vals)
+
+  if (verbose) {cat(rownames(cor_df),sep="\n")}
+  return(cor_df)
 }
