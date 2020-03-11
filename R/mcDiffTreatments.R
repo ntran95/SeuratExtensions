@@ -1,5 +1,7 @@
-diffConditionClust <- function(seurat_obj, cell_specific = FALSE,
+diffConditionClust <- function(
+  seurat_obj, group_clusters = NULL, cell_specific = FALSE,
   n_cores = 4, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE) {
+  
   if (DefaultAssay(seurat_obj) != "RNA") {
     print("Changing default assay to RNA")
     DefaultAssay(seurat_obj) <- "RNA"
@@ -23,57 +25,71 @@ diffConditionClust <- function(seurat_obj, cell_specific = FALSE,
   trt_cnt <- seq(1, (length(trt) * 2) - 1, by = 2)
   trt_BCs <- rep(list(character()), length(trt) * 2)
 
-  n_clust <- seq_along(unique(Idents(seurat_obj)))
+  if (is.null(group_clusters)) {
+    n_clust <- seq_along(unique(Idents(seurat_obj)))
+  } else {
+    n_clust <- which(unique(Idents(seurat_obj)) %in% group1_clusters)
+  }
+
   marker_list <- list()[n_clust]
 
-  parallel::mclapply(n_clust, mc.cores = n_cores, FUN = function(h) {
-    for(i in seq_along(trt_cnt)) {
-      trt_BCs[[trt_cnt[i]]] <- rownames(meta[
-        meta$data.set == trt[i] & meta$cell.type.ident == cell_type[h],])
-      trt_BCs[[trt_cnt[i] + 1]] <- rownames(meta[
-        !meta$data.set == trt[i] & meta$cell.type.ident == cell_type[h],])
+  parallel::mclapply(n_clust, mc.cores = n_cores,
+    FUN = function(h) {
+
+      if (!is.null(group_clusters)) {
+        n_clust <- seq_along(unique(Idents(seurat_obj)))
+      } else {
+        n_clust <- 
+      }
+
+      for(i in seq_along(trt_cnt)) {
+        trt_BCs[[trt_cnt[i]]] <- rownames(meta[
+          meta$data.set == trt[i] & meta$cell.type.ident %in% cell_type[h],])
+        trt_BCs[[trt_cnt[i] + 1]] <- rownames(meta[
+          !meta$data.set == trt[i] & meta$cell.type.ident %in% cell_type[h],])
+      }
+
+      diff_results <- list() # initalize list
+
+      if (cell_specific) {
+        cell_type_markers <- marker_table$Gene.name.uniq[
+          marker_table$cell.type.ident %in% cell_type[h]]
+      } else {cell_type_markers <- NULL}
+
+      for (i in seq_along(trt_cnt)) {
+        condition1 <- trt_BCs[[trt_cnt[i]]]
+        condition2 <- trt_BCs[[trt_cnt[i] + 1]]
+        diff_results[[i]] <- FindMarkers(seurat_obj, only.pos = FALSE,
+          ident.1 = condition1, ident.2 = condition2, logfc.threshold = 0.25,
+          features = cell_type_markers)
+        print(dim(diff_results[[i]]))
+      }
+
+      for (i in seq_along(trt_cnt)) {
+        diff_results[[i]] <-
+          diff_results[[i]][diff_results[[i]]$p_val < pval_cutoff,]
+        
+        diff_results[[i]]$pete_score <- diff_results$pct.1 *
+          diff_results$avg_logFC * (diff_results$pct.1 / diff_results$pct.2)
+
+        diff_results <- diff_results[
+          (order(diff_results$cluster, -1 * (diff_results$pete_score))),]
+
+        diff_results[[i]]$cell.type.and.trt <- paste0(cell_type[h], "_", trt[i])
+        diff_results[[i]]$Gene.name.uniq <- rownames(diff_results[[i]])
+        diff_results[[i]] <- inner_join(diff_results[[i]],
+          gene_info, by = "Gene.name.uniq")
+      }
+
+      table_list <- list()[seq_along(trt_cnt)]
+
+      for (i in seq_along(trt_cnt)) {
+        finished_table <- diff_results[[i]]
+        table_list[[i]] <- finished_table
+      }
+      return(table_list)
     }
-
-    diff_results <- list() # initalize list
-
-    if (cell_specific) {
-      cell_type_markers <- marker_table$Gene.name.uniq[
-        marker_table$cell.type.ident == cell_type[h]]
-    } else {cell_type_markers <- NULL}
-
-    for (i in seq_along(trt_cnt)) {
-      condition1 <- trt_BCs[[trt_cnt[i]]]
-      condition2 <- trt_BCs[[trt_cnt[i] + 1]]
-      diff_results[[i]] <- FindMarkers(seurat_obj, only.pos = FALSE,
-        ident.1 = condition1, ident.2 = condition2, logfc.threshold = 0.25,
-        features = cell_type_markers)
-      print(dim(diff_results[[i]]))
-    }
-
-    for (i in seq_along(trt_cnt)) {
-      diff_results[[i]] <-
-        diff_results[[i]][diff_results[[i]]$p_val < pval_cutoff,]
-      
-      diff_results[[i]]$pete_score <- diff_results$pct.1 *
-        diff_results$avg_logFC * (diff_results$pct.1 / diff_results$pct.2)
-
-      diff_results <- diff_results[
-        (order(diff_results$cluster, -1 * (diff_results$pete_score))),]
-
-      diff_results[[i]]$cell.type.and.trt <- paste0(cell_type[h], "_", trt[i])
-      diff_results[[i]]$Gene.name.uniq <- rownames(diff_results[[i]])
-      diff_results[[i]] <- inner_join(diff_results[[i]],
-        gene_info, by = "Gene.name.uniq")
-    }
-
-    table_list <- list()[seq_along(trt_cnt)]
-
-    for (i in seq_along(trt_cnt)) {
-      finished_table <- diff_results[[i]]
-      table_list[[i]] <- finished_table
-    }
-    return(table_list)
-  }) # end mclapply
+  ) # end mclapply
 
   if (cell_specific) {
     list_name <- "marker_list_specific_"
