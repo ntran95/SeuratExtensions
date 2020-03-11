@@ -1,33 +1,32 @@
-# ================ Diff expression for every treatment with NEW Cell classes
-if (FALSE) {
-  if (DefaultAssay(obj_integrated) != "RNA") {
+diffConditionClust <- function(seurat_obj, cell_specific = FALSE,
+  n_cores = 4, save_raw = TRUE, pval_cutoff = 0.05) {
+  if (DefaultAssay(seurat_obj) != "RNA") {
     print("Changing default assay to RNA")
-    DefaultAssay(obj_integrated) <- "RNA"
+    DefaultAssay(seurat_obj) <- "RNA"
   }
 
-  cell_specific <- TRUE
   if (cell_specific) {
     marker_table <- readRDS(dataPath(paste0(
       "Clusters_anchored_DF", script_name,"_.RDS")))
     folder <- "diff_exp_cell_specific/"
   } else {
-    folder <- "diff_exp_by_cell_type/"}
+    folder <- "diff_exp_by_cell_type/"
+  }
 
   dir.create(figurePath(folder))
 
-  all_BCs <- Idents(obj_integrated)
-  cell_type <- as.character(unique(Idents(obj_integrated)))
-  meta <- obj_integrated@meta.data
+  all_BCs <- Idents(seurat_obj)
+  cell_type <- as.character(unique(Idents(seurat_obj)))
+  meta <- seurat_obj@meta.data
 
   trt <- unique(meta$data.set)
   trt_cnt <- seq(1, (length(trt) * 2) - 1, by = 2)
-  trt_BCs <- rep(list(character()), length(trt) * 2) # init list
+  trt_BCs <- rep(list(character()), length(trt) * 2)
 
-  n_clust <- seq_along(unique(Idents(obj_integrated)))
-  marker_list <- list()[n_clust] # init list
+  n_clust <- seq_along(unique(Idents(seurat_obj)))
+  marker_list <- list()[n_clust]
 
-  MarkerCombos <- function(h) {
-
+  parallel::mclapply(n_clust, mc.cores = n_cores, FUN = function(h) {
     for(i in seq_along(trt_cnt)) {
       trt_BCs[[trt_cnt[i]]] <- rownames(meta[
         meta$data.set == trt[i] & meta$cell.type.ident == cell_type[h],])
@@ -45,21 +44,21 @@ if (FALSE) {
     for (i in seq_along(trt_cnt)) {
       condition1 <- trt_BCs[[trt_cnt[i]]]
       condition2 <- trt_BCs[[trt_cnt[i] + 1]]
-      diff_results[[i]] <- FindMarkers(obj_integrated, only.pos = FALSE,
+      diff_results[[i]] <- FindMarkers(seurat_obj, only.pos = FALSE,
         ident.1 = condition1, ident.2 = condition2, logfc.threshold = 0.25,
         features = cell_type_markers)
       print(dim(diff_results[[i]]))
     }
 
     for (i in seq_along(trt_cnt)) {
-      diff_results[[i]] <- diff_results[[i]][diff_results[[i]]$p_val < 0.05,]
-      diff_results[[i]]$pct.ratio <- 1:nrow(diff_results[[i]])
+      diff_results[[i]] <-
+        diff_results[[i]][diff_results[[i]]$p_val < pval_cutoff,]
       
-      diff_results[[i]]$pct.ratio <- 
-        diff_results[[i]]$pct.1 / diff_results[[i]]$pct.2
-      
-      diff_results[[i]] <- diff_results[[i]][(
-        order(diff_results[[i]]$pct.ratio, decreasing = TRUE)),]
+      diff_results[[i]]$pete_score <- diff_results$pct.1 *
+        diff_results$avg_logFC * (diff_results$pct.1 / diff_results$pct.2)
+
+      diff_results <- diff_results[
+        (order(diff_results$cluster, -1 * (diff_results$pete_score))),]
 
       diff_results[[i]]$cell.type.and.trt <- paste0(cell_type[h], "_", trt[i])
       diff_results[[i]]$Gene.name.uniq <- rownames(diff_results[[i]])
@@ -74,32 +73,24 @@ if (FALSE) {
       table_list[[i]] <- finished_table
     }
     return(table_list)
-  } 
+  }) # end mclapply
 
-  marker_list <- parallel::mclapply(n_clust, FUN = MarkerCombos, mc.cores = 10)
-
-  cell_specific <- TRUE
   if (cell_specific) {
-    file_name <- "MarkerList_specific_"
-  } else {file_name <- "MarkerList_"}
-
-  if (FALSE) {
-    saveRDS(marker_list, dataPath(paste0(file_name, script_name,"_.RDS")))
-    marker_list <- readRDS(dataPath(paste0(file_name, script_name,"_.RDS")))
-  }
+    file_name <- "marker_list_specific_"
+  } else {file_name <- "marker_list_"}
 
   # Collapse list into a single data frame
-  n_clust <- seq_along(unique(Idents(obj_integrated)))
-  all_markers <- lapply(n_clust, function (i) {bind_rows(marker_list[[i]])})
+  n_clust <- seq_along(unique(Idents(seurat_obj)))
+  all_markers <- lapply(n_clust, function (i) {bind_rows(table_list[[i]])})
   all_markers <- bind_rows(all_markers)
-  class(all_markers)
 
-  if (FALSE) {
+  if (save_raw) {
     saveRDS(all_markers, dataPath(paste0(file_name, script_name,"_.RDS")))
     all_markers <- readRDS(dataPath(paste0(file_name, script_name,"_.RDS")))
   }
 }
 
+if (FALSE){
 # ================ Plot results from above (each cell type vs all timepoints)
 if (FALSE) { # place holder for new function
   cell_specific <- TRUE
@@ -273,4 +264,5 @@ if (FALSE) { # place holder for new function
       dev.off()
     }
   })
+}
 }

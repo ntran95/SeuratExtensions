@@ -1,5 +1,5 @@
 mcFindMarkers <- function(seurat_obj,
-  save_raw = TRUE, p_val_cutoff = 0.05, cores = 10) {
+  save_raw = TRUE, pval_cutoff = 0.05, cores = 10) {
   if (DefaultAssay(seurat_obj) != "RNA") {
   stop("Default assay is not RNA")
   }
@@ -28,8 +28,8 @@ mcFindMarkers <- function(seurat_obj,
   }
 
   marker_results <- dplyr::bind_rows(marker_results)
-  marker_subset <- marker_results[marker_results$p_val < p_val_cutoff,]
-  
+  marker_subset <- marker_results[marker_results$pval < pval_cutoff,]
+
   marker_subset$pete_score <- marker_subset$pct.1 *
     marker_subset$avg_logFC * (marker_subset$pct.1 / marker_subset$pct.2)
   marker_subset <- marker_subset[(order(marker_subset$cluster,
