@@ -1,5 +1,5 @@
 diffConditionClust <- function(seurat_obj, cell_specific = FALSE,
-  n_cores = 4, save_raw = TRUE, pval_cutoff = 0.05) {
+  n_cores = 4, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE) {
   if (DefaultAssay(seurat_obj) != "RNA") {
     print("Changing default assay to RNA")
     DefaultAssay(seurat_obj) <- "RNA"
@@ -76,21 +76,32 @@ diffConditionClust <- function(seurat_obj, cell_specific = FALSE,
   }) # end mclapply
 
   if (cell_specific) {
-    file_name <- "marker_list_specific_"
-  } else {file_name <- "marker_list_"}
+    list_name <- "marker_list_specific_"
+    collapsed_name <- "all_markers_specific_"
+  } else {list_name <- "marker_list_"
+    collapsed_name <- "all_markers_"
+  }
+
+  if (save_raw) {
+    saveRDS(table_list, dataPath(paste0(list_name, script_name,"_.RDS")))
+    table_list <- readRDS(dataPath(paste0(list_name, script_name,"_.RDS")))
+  }
 
   # Collapse list into a single data frame
   n_clust <- seq_along(unique(Idents(seurat_obj)))
   all_markers <- lapply(n_clust, function (i) {bind_rows(table_list[[i]])})
   all_markers <- bind_rows(all_markers)
 
-  if (save_raw) {
-    saveRDS(all_markers, dataPath(paste0(file_name, script_name,"_.RDS")))
-    all_markers <- readRDS(dataPath(paste0(file_name, script_name,"_.RDS")))
+  if (save_collapsed) {
+    saveRDS(all_markers,
+      dataPath(paste0(collapsed_name, script_name,"_.RDS")))
+    all_markers <- readRDS(
+      dataPath(paste0(collapsed_name, script_name,"_.RDS")))
   }
+  return(all_markers)
 }
 
-if (FALSE){
+if (FALSE){ # Rest of code in progress
 # ================ Plot results from above (each cell type vs all timepoints)
 if (FALSE) { # place holder for new function
   cell_specific <- TRUE
