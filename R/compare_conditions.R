@@ -284,7 +284,7 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
 if (FALSE) {
   log_mat <- seurat_obj@assays$RNA@data
 
-  gene_marker_dist <- function(i, group1) {
+  geneMarkerDist <- function(i, group1) {
     if (group1 == TRUE) {bc_ind <- grepl(
       all_markers$cell.type.and.trt[i], meta$cell.type.and.trt)
       group <- "group-1"
