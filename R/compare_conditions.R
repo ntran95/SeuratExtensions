@@ -65,7 +65,7 @@ diffConditionClust <- function(
 
       for (i in seq_along(trt_cnt)) {
         print("Running FindMarkers:")
-        print(trt[i])
+        print(paste(trt[i], "vs. other timepoints"))
 
         condition1 <- trt_BCs[[trt_cnt[i]]]
         condition2 <- trt_BCs[[trt_cnt[i] + 1]]
