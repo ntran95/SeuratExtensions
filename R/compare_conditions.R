@@ -1,7 +1,7 @@
 diffConditionClust <- function(
-  seurat_obj, group_clusters = NULL, cell_specific = FALSE, file_prefix_raw = "", 
-  n_cores = 4, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE,
-  file_prefix_collapsed = "",) {
+  seurat_obj, group_clusters = NULL, cell_specific = FALSE,
+  n_cores = 1, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE,
+  file_prefix_list = Sys.Date(), file_prefix_collapsed = Sys.Date()) {
   
   if (DefaultAssay(seurat_obj) != "RNA") {
     print("Changing default assay to RNA")
@@ -11,9 +11,9 @@ diffConditionClust <- function(
   if (cell_specific) {
     marker_table <- readRDS(dataPath(paste0(
       "Clusters_anchored_DF", script_name,"_.RDS")))
-    folder <- "diff_exp_cell_specific/"
+    folder <- paste0("cell_specific-diff-", Sys.Date(),"/")
   } else {
-    folder <- "diff_exp_by_cell_type/"
+    folder <- paste0("cell_type-diff-", Sys.Date(),"/")
   }
 
   dir.create(figurePath(folder))
@@ -28,13 +28,18 @@ diffConditionClust <- function(
 
   if (is.null(group_clusters)) {
     n_clust <- seq_along(unique(Idents(seurat_obj)))
+    iterations <- n_clust
   } else {
     n_clust <- which(unique(Idents(seurat_obj)) %in% group_clusters)
+    iterations <- 1
   }
 
   marker_list <- list()[n_clust]
-  table_list <- parallel::mclapply(n_clust, mc.cores = n_cores,
+  table_list <- parallel::mclapply(iterations, mc.cores = n_cores,
     FUN = function(h) {
+      print(paste0("Number of apply iterations = ", iterations))
+      print(cell_type[n_clust])
+      askYesNo("Proceed?")
 
       if (is.null(group_clusters)) {
         cell_group <- cell_type[h]
@@ -59,13 +64,15 @@ diffConditionClust <- function(
       }
 
       for (i in seq_along(trt_cnt)) {
+        print("Running FindMarkers:")
+        print(trt[i])
+
         condition1 <- trt_BCs[[trt_cnt[i]]]
         condition2 <- trt_BCs[[trt_cnt[i] + 1]]
         
         diff_results[[i]] <- FindMarkers(seurat_obj, only.pos = FALSE,
           ident.1 = condition1, ident.2 = condition2, logfc.threshold = 0.25,
           features = cell_type_markers)
-        print(head(diff_results[[i]]))
       }
 
       for (i in seq_along(trt_cnt)) {
@@ -85,17 +92,16 @@ diffConditionClust <- function(
         diff_results[[i]]$Gene.name.uniq <- rownames(diff_results[[i]])
         diff_results[[i]] <- inner_join(diff_results[[i]],
           gene_info, by = "Gene.name.uniq")
-        print(head(diff_results[[i]]))
       }
       return(diff_results)
     }
   ) # end mclapply
 
   if (cell_specific) {
-    list_name <- paste0(file_prefix_raw, "_marker_list_specific_")
+    list_name <- paste0(file_prefix_list, "_marker_list_specific_")
     collapsed_name <- paste0(file_prefix_collapsed, "_all_markers_specific_")
   } else {
-    list_name <- paste0(file_prefix_raw, "marker_list_")
+    list_name <- paste0(file_prefix_list, "marker_list_")
     collapsed_name <- paste0(file_prefix_collapsed, "all_markers_")
   }
 
@@ -130,22 +136,24 @@ diffConditionClust <- function(
   return(all_markers)
 }
 
+# ==== Plot results from diffConditionClust
+diffConditionPlots <- function(seurat_obj, input_path = NULL,
+  folder_prefix = Sys.Date(), short_sig_figs = TRUE, n_genes = 200,
+  n_cores = 4, cell_specific = FALSE) {
 
-
-# ===== Plot results from diffConditionClust
-diffConditionPlots <- function(seurat_obj, file_ = NULL,
-  short_sig_figs = TRUE, n_genes = 200, n_cores = 4, cell_specific = TRUE) {
-  
-  if (cell_specific) {
-    all_markers <- readRDS(dataPath(paste0(file_name, script_name,"_.RDS")))
-    folder <- "diff_exp_cell_specific/"
+  if (is.null(input_path)) {
+    stop(paste0("Input file with columns Gene.name.uniq ",
+      "'cell.type.and.trt' and 'cell.type.ident' required"))
+  } else if(cell_specific) {
+    all_markers <- readRDS(input_path)
+    folder <- paste0("cell-specific-diff-", Sys.Date(),"/")
   } else {
-    all_markers <- readRDS(dataPath(paste0(file_name, script_name,"_.RDS")))
-    folder <- "diff_exp_by_cell_type/"
+    all_markers <- readRDS(input_path)
+    folder <- paste0("cell_type-diff-", Sys.Date(),"/")
   }
 
   print("Number or results for each combination of treatment and cell type:")
-  print(table(all_markers$cell.type.and.trt) < 20)
+  print(table(all_markers$cell.type.and.trt))
 
   if (short_sig_figs) {
     seurat_obj@meta.data$cell.type.and.trt <- paste0(
@@ -171,7 +179,9 @@ diffConditionPlots <- function(seurat_obj, file_ = NULL,
     all_markers$cell.type.and.trt)
 
   # {Violin Plot panels}
-  dir.create(figurePath(paste0(folder, "violin-plot-by-treatment/")))
+  dir.create(figurePath(paste0(folder, folder_prefix, "-vln-plots")))
+
+  print("generating violin plots...")
   parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
     function (i) {
       ifelse(seq_along(ind_chng[i]) == tail(seq_along(ind_chng),1),
@@ -179,13 +189,13 @@ diffConditionPlots <- function(seurat_obj, file_ = NULL,
         ind_range <- ind_chng[i]:nrow(all_markers))
       
       population <- paste0(all_markers$cell.type.and.trt[ind_range], " vs. ",
-        (strsplit(all_markers$cell.type.and.trt[ind_range],"-")[[1]][1]), "-other")
+        strsplit(all_markers$cell.type.and.trt[ind_range],"-")[[1]][1],"-other")
       
       stats <- paste0("p-value: ", all_markers$p_val[ind_range], ", ",
         "avg. logFC: ", all_markers$avg_logFC[ind_range], ", ",
         "pct.1: ", all_markers$pct.1[ind_range], ", ",
         "pct.2: ", all_markers$pct.2[ind_range], ", ",
-        "pct.ratio: ", all_markers$pct.ratio[ind_range])
+        "pete_score: ", all_markers$pete_score[ind_range])
       
       genes <- all_markers$Gene.name.uniq[ind_range]
       genes <- genes[1:n_genes]
@@ -200,16 +210,16 @@ diffConditionPlots <- function(seurat_obj, file_ = NULL,
         to_plot <- genes[sub_ind]
         if (NA %in% to_plot) {break}
 
-        v <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25,
-          idents = cell_ident, cols = trt_colors,
-          combine = FALSE, group.by = "data.set")
+        v <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25, idents = cell_ident,
+          cols = trt_colors, combine = FALSE, group.by = "data.set")
+        
         for(k in seq_along(v)) {
           v[[k]] <- v[[k]] + NoLegend() + labs(
             caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
 
-        path <- figurePath(paste0(folder, "Vplot-top-markers-by-treatment/",
+        path <- figurePath(paste0(folder, folder_prefix, "-vln-plots/",
           all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
           "-", (seq_nums[j] + 19),"_features.png"))
 
@@ -218,26 +228,27 @@ diffConditionPlots <- function(seurat_obj, file_ = NULL,
         dev.off()
       }
     }
-  )# end mclappy vln
-
+  ) # end mclappy vln
 
   # {Feature Plot panels}
-  dir.create(figurePath(paste0(folder, "feature-plot-treatment/")))
+  dir.create(figurePath(paste0(folder, folder_prefix, "-feat-plots")))
 
+  print("generating feature plots...")
   parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
     function (i) {
       ifelse(seq_along(ind_chng[i]) == tail(seq_along(ind_chng),1),
         ind_range <- ind_chng[i]:((ind_chng[i + 1]) - 1),
         ind_range <- ind_chng[i]:nrow(all_markers))
       
-      population <- paste0(all_markers$cell.type.and.trt[ind_range], " vs. ",
-        (strsplit(all_markers$cell.type.and.trt[ind_range],"-")[[1]][1]), "-other")
+      population <- paste0(
+        all_markers$cell.type.and.trt[ind_range], " vs. ", strsplit(
+          all_markers$cell.type.and.trt[ind_range],"-")[[1]][1], "-other")
       
       stats <- paste0("p-val: ", all_markers$p_val[ind_range], ", ",
         "avg. logFC: ", all_markers$avg_logFC[ind_range], ", ",
         "pct.1: ", all_markers$pct.1[ind_range], ", ",
         "pct.2: ", all_markers$pct.2[ind_range], ", ",
-        "pct.ratio: ", all_markers$pct.ratio[ind_range])
+        "pete_score: ", all_markers$pete_score[ind_range])
 
       genes <- all_markers$Gene.name.uniq[ind_range]
       genes <- genes[1:n_genes]
@@ -249,8 +260,8 @@ diffConditionPlots <- function(seurat_obj, file_ = NULL,
         stats_sub <- stats[sub_ind]
         
         if (NA %in% to_plot) {break}
-        f <- FeaturePlot(seurat_obj, to_plot,
-          reduction = "umap", pt.size = 0.25, combine = FALSE)
+        f <- FeaturePlot(seurat_obj, to_plot, reduction = "umap",
+          pt.size = 0.25, combine = FALSE)
         
         for(k in seq_along(f)) {
           f[[k]] <- f[[k]] + NoLegend() + NoAxes() + labs(
@@ -258,7 +269,7 @@ diffConditionPlots <- function(seurat_obj, file_ = NULL,
           theme(plot.caption = element_text(hjust = 0))
         }
 
-        path <- figurePath(paste0(folder, "Fplot-top-markers-treatment/",
+        path <- figurePath(paste0(folder, folder_prefix, "-feat-plots/",
           all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
           "-", (seq_nums[j] + 19),"_features.png"))
         png(path, width = 30, height = 25, units = "in", res = 200)
@@ -270,11 +281,6 @@ diffConditionPlots <- function(seurat_obj, file_ = NULL,
 }
 
 
-
-
-
-
-diffConditionClust <- FALSE
 if (FALSE) {
   log_mat <- seurat_obj@assays$RNA@data
 
@@ -296,10 +302,10 @@ if (FALSE) {
   
   # This takes awhile to run for the macrophage data, even with 10 cores
   stat_sum1 <- parallel::mclapply(1:nrow(all_markers),
-    gene_marker_dist, group1 = TRUE, mc.cores = 10)
+    gene_marker_dist, group1 = TRUE, mc.cores = n_cores)
 
   stat_sum2 <- parallel::mclapply(1:nrow(all_markers),
-    gene_marker_dist, group1 = FALSE, mc.cores = 10)
+    gene_marker_dist, group1 = FALSE, mc.cores = n_cores)
 
   save(stat_sum1, stat_sum2,
     file = dataPath(paste0("stat_sums", script_name, "_.RData")))
