@@ -1,3 +1,5 @@
+if (FALSE) { # don't run anything
+
 evaluate_cell_selection <- FALSE
 if (evaluate_cell_selection) {
 
@@ -202,3 +204,5 @@ pheatmap::pheatmap(goi_mat, cluster_rows = TRUE, cluster_cols = FALSE,
   annotation_colors = anno_cols, gaps_col = c(7,14), annotation_names_col = FALSE,
   annotation_legend = FALSE)
 dev.off()
+
+} # end don't run
