@@ -1,7 +1,8 @@
 diffConditionClust <- function(
   seurat_obj, group_clusters = NULL, cell_specific = FALSE,
   n_cores = 1, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE,
-  file_prefix_list = Sys.Date(), file_prefix_collapsed = Sys.Date()) {
+  file_prefix_list = gsub(":|\ ", "-", Sys.time()),
+  file_prefix_collapsed = gsub(":|\ ", "-", Sys.time())) {
   
   if (DefaultAssay(seurat_obj) != "RNA") {
     print("Changing default assay to RNA")
@@ -11,9 +12,9 @@ diffConditionClust <- function(
   if (cell_specific) {
     marker_table <- readRDS(dataPath(paste0(
       "Clusters_anchored_DF", script_name,"_.RDS")))
-    folder <- paste0("cell_specific-diff-", Sys.Date(),"/")
+    folder <- paste0("cell_specific-diff-", gsub(":|\ ", "-", Sys.time()),"/")
   } else {
-    folder <- paste0("cell_type-diff-", Sys.Date(),"/")
+    folder <- paste0("cell_type-diff-", gsub(":|\ ", "-", Sys.time()),"/")
   }
 
   dir.create(figurePath(folder))
@@ -138,20 +139,15 @@ diffConditionClust <- function(
 
 # ==== Plot results from diffConditionClust
 diffConditionPlots <- function(seurat_obj, input_path = NULL,
-  folder_prefix = Sys.Date(), short_sig_figs = TRUE, n_genes = 200,
-  n_cores = 4, cell_specific = FALSE) {
+  folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE, n_genes = 200,
+  n_cores = 4) {
 
   if (is.null(input_path)) {
     stop(paste0("Input file with columns Gene.name.uniq ",
       "'cell.type.and.trt' and 'cell.type.ident' required"))
-  } else if(cell_specific) {
-    all_markers <- readRDS(input_path)
-    folder <- paste0("cell-specific-diff-", Sys.Date(),"/")
-  } else {
-    all_markers <- readRDS(input_path)
-    folder <- paste0("cell_type-diff-", Sys.Date(),"/")
   }
-
+  
+  all_markers <- readRDS(input_path)
   print("Number or results for each combination of treatment and cell type:")
   print(table(all_markers$cell.type.and.trt))
 
@@ -179,7 +175,7 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
     all_markers$cell.type.and.trt)
 
   # {Violin Plot panels}
-  dir.create(figurePath(paste0(folder, folder_prefix, "-vln-plots")))
+  dir.create(figurePath(paste0(folder_prefix, "-vln-plots")))
 
   print("generating violin plots...")
   parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
@@ -219,9 +215,13 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
           theme(plot.caption = element_text(hjust = 0))
         }
 
-        path <- figurePath(paste0(folder, folder_prefix, "-vln-plots/",
+        path <- figurePath(paste0(folder_prefix, "-vln-plots/",
           all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
           "-", (seq_nums[j] + 19),"_features.png"))
+        
+        if(!dir.exists(path)) {
+          stop("File path does exist. Please check path input path")
+        }
 
         png(path, width = 30, height = 25, units = "in", res = 200)
         print(cowplot::plot_grid(plotlist = v))
@@ -231,7 +231,7 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
   ) # end mclappy vln
 
   # {Feature Plot panels}
-  dir.create(figurePath(paste0(folder, folder_prefix, "-feat-plots")))
+  dir.create(figurePath(paste0(folder_prefix, "-feat-plots")))
 
   print("generating feature plots...")
   parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
@@ -269,7 +269,7 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
           theme(plot.caption = element_text(hjust = 0))
         }
 
-        path <- figurePath(paste0(folder, folder_prefix, "-feat-plots/",
+        path <- figurePath(paste0(folder_prefix, "-feat-plots/",
           all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
           "-", (seq_nums[j] + 19),"_features.png"))
         png(path, width = 30, height = 25, units = "in", res = 200)
