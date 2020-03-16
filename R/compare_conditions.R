@@ -17,7 +17,7 @@ diffConditionClust <- function(
     folder <- paste0("cell_type-diff-", gsub(":|\ ", "-", Sys.time()),"/")
   }
 
-  dir.create(figurePath(folder))
+  dir.create(figurePath(folder), showWarnings = FALSE)
 
   all_BCs <- Idents(seurat_obj)
   cell_type <- as.character(unique(Idents(seurat_obj)))
@@ -175,7 +175,8 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
     all_markers$cell.type.and.trt)
 
   # {Violin Plot panels}
-  dir.create(figurePath(paste0(folder_prefix, "-vln-plots")))
+  dir.create(figurePath(paste0(folder_prefix, "-vln-plots")),
+    showWarnings = FALSE)
 
   print("generating violin plots...")
   parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
@@ -215,15 +216,11 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
           theme(plot.caption = element_text(hjust = 0))
         }
 
-        path <- figurePath(paste0(folder_prefix, "-vln-plots/",
+        vln_path <- figurePath(paste0(folder_prefix, "-vln-plots/",
           all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
           "-", (seq_nums[j] + 19),"_features.png"))
-        
-        if(!dir.exists(path)) {
-          stop("File path does exist. Please check path input path")
-        }
 
-        png(path, width = 30, height = 25, units = "in", res = 200)
+        png(vln_path, width = 30, height = 25, units = "in", res = 200)
         print(cowplot::plot_grid(plotlist = v))
         dev.off()
       }
@@ -231,7 +228,8 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
   ) # end mclappy vln
 
   # {Feature Plot panels}
-  dir.create(figurePath(paste0(folder_prefix, "-feat-plots")))
+  dir.create(figurePath(paste0(folder_prefix, "-feat-plots")),
+    showWarnings = FALSE)
 
   print("generating feature plots...")
   parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
@@ -269,10 +267,11 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
           theme(plot.caption = element_text(hjust = 0))
         }
 
-        path <- figurePath(paste0(folder_prefix, "-feat-plots/",
+        feat_path <- figurePath(paste0(folder_prefix, "-feat-plots/",
           all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
           "-", (seq_nums[j] + 19),"_features.png"))
-        png(path, width = 30, height = 25, units = "in", res = 200)
+
+        png(feat_path, width = 30, height = 25, units = "in", res = 200)
         print(cowplot::plot_grid(plotlist = f))
         dev.off()
       } # end for loop
