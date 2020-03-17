@@ -38,7 +38,8 @@ diffConditionClust <- function(
   marker_list <- list()[n_clust]
   table_list <- parallel::mclapply(iterations, mc.cores = n_cores,
     FUN = function(h) {
-      print(paste0("Number of apply iterations = ", iterations))
+      print(paste0("Number of apply iterations = ",
+        iterations, " over ", n_cores, " cores"))
       print(cell_type[n_clust])
       askYesNo("Proceed?")
 
@@ -102,8 +103,8 @@ diffConditionClust <- function(
     list_name <- paste0(file_prefix_list, "_marker_list_specific_")
     collapsed_name <- paste0(file_prefix_collapsed, "_all_markers_specific_")
   } else {
-    list_name <- paste0(file_prefix_list, "marker_list_")
-    collapsed_name <- paste0(file_prefix_collapsed, "all_markers_")
+    list_name <- paste0(file_prefix_list, "_marker_list_")
+    collapsed_name <- paste0(file_prefix_collapsed, "_all_markers_")
   }
 
   if (save_raw) {
@@ -137,10 +138,13 @@ diffConditionClust <- function(
   return(all_markers)
 }
 
+
 # ==== Plot results from diffConditionClust
 diffConditionPlots <- function(seurat_obj, input_path = NULL,
-  folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE, n_genes = 200,
-  n_cores = 4) {
+  folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE,
+  n_genes = 200, n_cores = 4) {
+
+  vln_feat_list <- list()
 
   if (is.null(input_path)) {
     stop(paste0("Input file with columns Gene.name.uniq ",
@@ -207,11 +211,12 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
         to_plot <- genes[sub_ind]
         if (NA %in% to_plot) {break}
 
-        v <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25, idents = cell_ident,
-          cols = trt_colors, combine = FALSE, group.by = "data.set")
+        vln_list <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25,
+          idents = cell_ident, cols = trt_colors, combine = FALSE,
+          group.by = "data.set")
         
-        for(k in seq_along(v)) {
-          v[[k]] <- v[[k]] + NoLegend() + labs(
+        for(k in seq_along(vln_list)) {
+          vln_list[[k]] <- vln_list[[k]] + NoLegend() + labs(
             caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
@@ -221,7 +226,7 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
           "-", (seq_nums[j] + 19),"_features.png"))
 
         png(vln_path, width = 30, height = 25, units = "in", res = 200)
-        print(cowplot::plot_grid(plotlist = v))
+        print(cowplot::plot_grid(plotlist = vln_list))
         dev.off()
       }
     }
@@ -258,11 +263,11 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
         stats_sub <- stats[sub_ind]
         
         if (NA %in% to_plot) {break}
-        f <- FeaturePlot(seurat_obj, to_plot, reduction = "umap",
+        feat_list <- FeaturePlot(seurat_obj, to_plot, reduction = "umap",
           pt.size = 0.25, combine = FALSE)
         
-        for(k in seq_along(f)) {
-          f[[k]] <- f[[k]] + NoLegend() + NoAxes() + labs(
+        for(k in seq_along(feat_list)) {
+          feat_list[[k]] <- feat_list[[k]] + NoLegend() + NoAxes() + labs(
             caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
@@ -272,11 +277,11 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
           "-", (seq_nums[j] + 19),"_features.png"))
 
         png(feat_path, width = 30, height = 25, units = "in", res = 200)
-        print(cowplot::plot_grid(plotlist = f))
+        print(cowplot::plot_grid(plotlist = feat_list))
         dev.off()
       } # end for loop
     } # end mclappy feat
-  ) 
+  )
 }
 
 
