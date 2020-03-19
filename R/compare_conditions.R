@@ -1,4 +1,4 @@
-diffConditionClust <- function(
+diffConditionMrkrs <- function(
   seurat_obj, group_clusters = NULL, cell_specific = FALSE,
   n_cores = 1, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE,
   file_prefix_list = gsub(":|\ ", "-", Sys.time()),
@@ -293,15 +293,10 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
 
 # ================================================================== START TEST
 
-
-
-
 # ==== Plot results from diffConditionClust
 diffSplitPlots <- function(seurat_obj, input_path = NULL,
   folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE,
   n_genes = 200, n_cores = 4) {
-
-  vln_feat_list <- list()
 
   if (is.null(input_path)) {
     stop(paste0("Input file with columns Gene.name.uniq ",
@@ -318,11 +313,8 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
       seurat_obj@meta.data$data.set)
 
     # Shortening sig figs for plotting
-    all_markers$avg_logFC <- signif(all_markers$avg_logFC, 3)
-    all_markers$p_val <- signif(all_markers$p_val, 3)
-    all_markers$pete_score <- signif(all_markers$pete_score, 2)
-    all_markers$pct.1 <- signif(all_markers$pct.1, 3)
-    all_markers$pct.2 <- signif(all_markers$pct.2, 3)
+    num_cols <- which(lapply(all_markers, function(i){class(i)}) == "numeric")
+    all_markers[,num_cols] <- signif(all_markers[,num_cols], 3)
 
     DefaultAssay(seurat_obj) <- "RNA"
     assay <- "assay_RNA_"
@@ -339,7 +331,6 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
   dir.create(figurePath(paste0(folder_prefix, "-vln-plots")),
     showWarnings = FALSE)
 
-  print("generating violin plots...")
   parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
     function (i) {
       ifelse(seq_along(ind_chng[i]) == tail(seq_along(ind_chng),1),
@@ -368,6 +359,7 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
         to_plot <- genes[sub_ind]
         if (NA %in% to_plot) {break}
 
+        print("generating violin plots...")
         vln_list <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25,
           idents = cell_ident, cols = trt_colors, combine = FALSE,
           group.by = "data.set")
@@ -385,12 +377,28 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
         png(vln_path, width = 30, height = 25, units = "in", res = 200)
         print(cowplot::plot_grid(plotlist = vln_list))
         dev.off()
+
+        print("generating feature plots...")
+        feat_list <- FeaturePlot(seurat_obj, to_plot, reduction = "umap",
+          pt.size = 0.25, combine = FALSE)
+        
+        for(k in seq_along(feat_list)) {
+          feat_list[[k]] <- feat_list[[k]] + NoLegend() + NoAxes() + labs(
+            caption = paste(pop_sub[k], "\n", stats_sub[k])) +
+          theme(plot.caption = element_text(hjust = 0))
+        }
+
+        feat_path <- figurePath(paste0(folder_prefix, "-feat-plots/",
+          all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
+          "-", (seq_nums[j] + 19),"_features.png"))
+
+        png(feat_path, width = 30, height = 25, units = "in", res = 200)
+        print(cowplot::plot_grid(plotlist = feat_list))
+        dev.off()
       }
     }
   ) # end mclappy vln
 }
-
-
 
 # ================================================================== END TEST
 
