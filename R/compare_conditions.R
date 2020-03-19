@@ -285,6 +285,126 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
 }
 
 
+
+
+
+
+
+
+# ================================================================== START TEST
+
+
+
+
+# ==== Plot results from diffConditionClust
+diffSplitPlots <- function(seurat_obj, input_path = NULL,
+  folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE,
+  n_genes = 200, n_cores = 4) {
+
+  vln_feat_list <- list()
+
+  if (is.null(input_path)) {
+    stop(paste0("Input file with columns Gene.name.uniq ",
+      "'cell.type.and.trt' and 'cell.type.ident' required"))
+  }
+  
+  all_markers <- readRDS(input_path)
+  print("Number or results for each combination of treatment and cell type:")
+  print(table(all_markers$cell.type.and.trt))
+
+  if (short_sig_figs) {
+    seurat_obj@meta.data$cell.type.and.trt <- paste0(
+      seurat_obj@meta.data$cell.type.ident, "_",
+      seurat_obj@meta.data$data.set)
+
+    # Shortening sig figs for plotting
+    all_markers$avg_logFC <- signif(all_markers$avg_logFC, 3)
+    all_markers$p_val <- signif(all_markers$p_val, 3)
+    all_markers$pete_score <- signif(all_markers$pete_score, 2)
+    all_markers$pct.1 <- signif(all_markers$pct.1, 3)
+    all_markers$pct.2 <- signif(all_markers$pct.2, 3)
+
+    DefaultAssay(seurat_obj) <- "RNA"
+    assay <- "assay_RNA_"
+  }
+
+  seq_nums <- seq(1, n_genes, by = 20)
+  meta <- seurat_obj@meta.data
+
+  # get index change for cell type and treatment
+  ind_chng <- match(unique(all_markers$cell.type.and.trt),
+    all_markers$cell.type.and.trt)
+
+  # {Violin Plot panels}
+  dir.create(figurePath(paste0(folder_prefix, "-vln-plots")),
+    showWarnings = FALSE)
+
+  print("generating violin plots...")
+  parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
+    function (i) {
+      ifelse(seq_along(ind_chng[i]) == tail(seq_along(ind_chng),1),
+        ind_range <- ind_chng[i]:((ind_chng[i + 1]) - 1),
+        ind_range <- ind_chng[i]:nrow(all_markers))
+      
+      population <- paste0(all_markers$cell.type.and.trt[ind_range], " vs. ",
+        strsplit(all_markers$cell.type.and.trt[ind_range],"-")[[1]][1],"-other")
+      
+      stats <- paste0("p-value: ", all_markers$p_val[ind_range], ", ",
+        "avg. logFC: ", all_markers$avg_logFC[ind_range], ", ",
+        "pct.1: ", all_markers$pct.1[ind_range], ", ",
+        "pct.2: ", all_markers$pct.2[ind_range], ", ",
+        "pete_score: ", all_markers$pete_score[ind_range])
+      
+      genes <- all_markers$Gene.name.uniq[ind_range]
+      genes <- genes[1:n_genes]
+
+      for(j in seq_along(seq_nums)) {
+        cell_ident <- gsub("_.*","", all_markers$cell.type.and.trt[ind_range][1])
+
+        sub_ind <- seq_nums[j]:(seq_nums[j]+19)
+        pop_sub <- population[sub_ind]
+        stats_sub <- stats[sub_ind]
+
+        to_plot <- genes[sub_ind]
+        if (NA %in% to_plot) {break}
+
+        vln_list <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25,
+          idents = cell_ident, cols = trt_colors, combine = FALSE,
+          group.by = "data.set")
+        
+        for(k in seq_along(vln_list)) {
+          vln_list[[k]] <- vln_list[[k]] + NoLegend() + labs(
+            caption = paste(pop_sub[k], "\n", stats_sub[k])) +
+          theme(plot.caption = element_text(hjust = 0))
+        }
+
+        vln_path <- figurePath(paste0(folder_prefix, "-vln-plots/",
+          all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
+          "-", (seq_nums[j] + 19),"_features.png"))
+
+        png(vln_path, width = 30, height = 25, units = "in", res = 200)
+        print(cowplot::plot_grid(plotlist = vln_list))
+        dev.off()
+      }
+    }
+  ) # end mclappy vln
+}
+
+
+
+# ================================================================== END TEST
+
+
+
+
+
+
+
+
+
+
+
+
 if (FALSE) {
   log_mat <- seurat_obj@assays$RNA@data
 
