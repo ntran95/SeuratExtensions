@@ -273,7 +273,7 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
           }
 
           png(combined_path,
-            width = 50, height = 50, units = "in", res = 100)
+            width = 50, height = 60, units = "in", res = 100)
           print(cowplot::plot_grid(plotlist = combined_list, ncol = 5))
           dev.off()
         }
