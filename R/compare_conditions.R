@@ -214,7 +214,7 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
         if (NA %in% to_plot) {break}
 
         print(paste0(
-          "generating violin plots ", seq_nums[j],"-", (seq_nums[j]+19)))
+          "generating plots ", seq_nums[j],"-", (seq_nums[j]+19)))
         vln_list <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25,
           idents = cell_ident, cols = trt_colors, combine = FALSE,
           group.by = "data.set")
@@ -225,8 +225,6 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
           theme(plot.caption = element_text(hjust = 0))
         }
 
-        print(paste0(
-          "generating feature plots ", seq_nums[j],"-", (seq_nums[j]+19)))
         feat_list <- FeaturePlot(seurat_obj, to_plot, reduction = "umap",
           pt.size = 0.25, combine = FALSE)
         
@@ -238,7 +236,7 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
 
         if(split) {
           vln_path <- figurePath(paste0(folder_prefix, "-vln-plots/",
-            åtrt_with_index, "_top_", seq_nums[j],
+            trt_with_index, "_top_", seq_nums[j],
             "-", (seq_nums[j] + 19),"_features.png"))
 
           feat_path <- figurePath(paste0(folder_prefix, "-feat-plots/",
@@ -257,16 +255,13 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
             trt_with_index, "_top_", seq_nums[j],
             "-", (seq_nums[j] + 19),"_features.png"))
 
-          # combined_list <- c(feat_list, vln_list)
-
-          #test
           combined_list <- list()[1:40]
           seqs <- seq(1, 40, by = 5)
 
-          for (i in seq(2, 8, by = 2)) {
-            first_row <- (seqs[i-1]):(seqs[i-1]+4)
-            next_row <- (seqs[i]):(seqs[i]+4)
-            plot_slice <- ((((i/2)*5)-4):((i/2)*5))
+          for (x in seq(2, 8, by = 2)) {
+            first_row <- (seqs[x-1]):(seqs[x-1]+4)
+            next_row <- (seqs[x]):(seqs[x]+4)
+            plot_slice <- ((((x/2)*5)-4):((x/2)*5))
 
             combined_list[first_row] <- feat_list[plot_slice]
             combined_list[next_row] <- vln_list[plot_slice]
