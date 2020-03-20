@@ -327,12 +327,16 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
   ind_chng <- match(unique(all_markers$cell.type.and.trt),
     all_markers$cell.type.and.trt)
 
-  # {Violin Plot panels}
   dir.create(figurePath(paste0(folder_prefix, "-vln-plots")),
     showWarnings = FALSE)
 
-  parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
+  dir.create(figurePath(paste0(folder_prefix, "-feat-plots")),
+    showWarnings = FALSE)
+
+  plot_list <- parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
     function (i) {
+      vln_feat_list <- list()[1:30]
+
       ifelse(seq_along(ind_chng[i]) == tail(seq_along(ind_chng),1),
         ind_range <- ind_chng[i]:((ind_chng[i + 1]) - 1),
         ind_range <- ind_chng[i]:nrow(all_markers))
@@ -350,7 +354,8 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
       genes <- genes[1:n_genes]
 
       for(j in seq_along(seq_nums)) {
-        cell_ident <- gsub("_.*","", all_markers$cell.type.and.trt[ind_range][1])
+        cell_ident <- gsub("_.*","",
+          all_markers$cell.type.and.trt[ind_range][1])
 
         sub_ind <- seq_nums[j]:(seq_nums[j]+19)
         pop_sub <- population[sub_ind]
@@ -369,6 +374,7 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
             caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
+        vln_feat_list[[i]][[j]] <- vln_list
 
         vln_path <- figurePath(paste0(folder_prefix, "-vln-plots/",
           all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
@@ -387,6 +393,7 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
             caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
+        vln_feat_list[[i]][[j]] <- feat_list
 
         feat_path <- figurePath(paste0(folder_prefix, "-feat-plots/",
           all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
@@ -395,9 +402,11 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
         png(feat_path, width = 30, height = 25, units = "in", res = 200)
         print(cowplot::plot_grid(plotlist = feat_list))
         dev.off()
-      }
+      } # end print plot loop
+    return(vln_feat_list)
     }
   ) # end mclappy vln
+  return(plot_list)
 }
 
 # ================================================================== END TEST
