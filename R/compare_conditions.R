@@ -296,7 +296,7 @@ diffConditionPlots <- function(seurat_obj, input_path = NULL,
 # ==== Plot results from diffConditionClust
 diffSplitPlots <- function(seurat_obj, input_path = NULL,
   folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE,
-  n_genes = 200, n_cores = 4) {
+  n_genes = 200, n_cores = 4, split = FALSE) {
 
   if (is.null(input_path)) {
     stop(paste0("Input file with columns Gene.name.uniq ",
@@ -327,15 +327,18 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
   ind_chng <- match(unique(all_markers$cell.type.and.trt),
     all_markers$cell.type.and.trt)
 
-  dir.create(figurePath(paste0(folder_prefix, "-vln-plots")),
-    showWarnings = FALSE)
+  if (split){
+    dir.create(figurePath(paste0(folder_prefix, "-vln-plots")),
+      showWarnings = FALSE)
+    dir.create(figurePath(paste0(folder_prefix, "-feat-plots")),
+      showWarnings = FALSE)
+  } else {
+    dir.create(figurePath(paste0(folder_prefix, "-feat-vln-plots")),
+      showWarnings = FALSE)
+  }
 
-  dir.create(figurePath(paste0(folder_prefix, "-feat-plots")),
-    showWarnings = FALSE)
-
-  plot_list <- parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
+parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
     function (i) {
-      vln_feat_list <- list()[1:30]
 
       ifelse(seq_along(ind_chng[i]) == tail(seq_along(ind_chng),1),
         ind_range <- ind_chng[i]:((ind_chng[i + 1]) - 1),
@@ -361,10 +364,12 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
         pop_sub <- population[sub_ind]
         stats_sub <- stats[sub_ind]
 
+        trt_with_index <- all_markers$cell.type.and.trt[ind_chng[i]]
         to_plot <- genes[sub_ind]
         if (NA %in% to_plot) {break}
 
-        print("generating violin plots...")
+        print(paste0(
+          "generating violin plots ", seq_nums[j],"-", (seq_nums[j]+19)))
         vln_list <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25,
           idents = cell_ident, cols = trt_colors, combine = FALSE,
           group.by = "data.set")
@@ -374,17 +379,9 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
             caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
-        vln_feat_list[[i]][[j]] <- vln_list
 
-        vln_path <- figurePath(paste0(folder_prefix, "-vln-plots/",
-          all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
-          "-", (seq_nums[j] + 19),"_features.png"))
-
-        png(vln_path, width = 30, height = 25, units = "in", res = 200)
-        print(cowplot::plot_grid(plotlist = vln_list))
-        dev.off()
-
-        print("generating feature plots...")
+        print(paste0(
+          "generating feature plots ", seq_nums[j],"-", (seq_nums[j]+19)))
         feat_list <- FeaturePlot(seurat_obj, to_plot, reduction = "umap",
           pt.size = 0.25, combine = FALSE)
         
@@ -393,25 +390,42 @@ diffSplitPlots <- function(seurat_obj, input_path = NULL,
             caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
-        vln_feat_list[[i]][[j]] <- feat_list
 
-        feat_path <- figurePath(paste0(folder_prefix, "-feat-plots/",
-          all_markers$cell.type.and.trt[ind_chng[i]], "_top_", seq_nums[j],
-          "-", (seq_nums[j] + 19),"_features.png"))
+        if(split) {
+          vln_path <- figurePath(paste0(folder_prefix, "-vln-plots/",
+            åtrt_with_index, "_top_", seq_nums[j],
+            "-", (seq_nums[j] + 19),"_features.png"))
 
-        png(feat_path, width = 30, height = 25, units = "in", res = 200)
-        print(cowplot::plot_grid(plotlist = feat_list))
-        dev.off()
+          feat_path <- figurePath(paste0(folder_prefix, "-feat-plots/",
+            trt_with_index, "_top_", seq_nums[j],
+            "-", (seq_nums[j] + 19),"_features.png"))
+
+          png(vln_path, width = 30, height = 25, units = "in", res = 200)
+          print(cowplot::plot_grid(plotlist = vln_list))
+          dev.off()
+          
+          png(feat_path, width = 30, height = 25, units = "in", res = 200)
+          print(cowplot::plot_grid(plotlist = feat_list))
+          dev.off()
+        } else {
+          combined_path <- figurePath(paste0(folder_prefix, "-feat-vln-plots/",
+            trt_with_index, "_top_", seq_nums[j],
+            "-", (seq_nums[j] + 19),"_features.png"))
+
+          combined_list <- c(feat_list, vln_list)
+          png(combined_path,
+            width = 50, height = 50, units = "in", res = 100)
+          print(cowplot::plot_grid(plotlist = combined_list, ncol = 5))
+          dev.off()
+        }
       } # end print plot loop
-    return(vln_feat_list)
     }
   ) # end mclappy vln
-  return(plot_list)
 }
 
 # ================================================================== END TEST
 
-
+c(list(a = 1, b = 2), list(c = 3, d = 4))
 
 
 
