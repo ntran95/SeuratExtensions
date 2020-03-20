@@ -412,7 +412,21 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
             trt_with_index, "_top_", seq_nums[j],
             "-", (seq_nums[j] + 19),"_features.png"))
 
-          combined_list <- c(feat_list, vln_list)
+          # combined_list <- c(feat_list, vln_list)
+
+          #test
+          combined_list <- list()[1:40]
+          seqs <- seq(1, 40, by = 5)
+
+          for (i in seq(2, 8, by = 2)) {
+            first_row <- (seqs[i-1]):(seqs[i-1]+4)
+            next_row <- (seqs[i]):(seqs[i]+4)
+            plot_slice <- ((((i/2)*5)-4):((i/2)*5))
+
+            combined_list[first_row] <- feat_list[plot_slice]
+            combined_list[next_row] <- vln_list[plot_slice]
+          }
+
           png(combined_path,
             width = 50, height = 50, units = "in", res = 100)
           print(cowplot::plot_grid(plotlist = combined_list, ncol = 5))
@@ -424,14 +438,7 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
 }
 
 # ================================================================== END TEST
-
-c(list(a = 1, b = 2), list(c = 3, d = 4))
-
-
-
-
-
-
+append(list(a = 1, b = 2), list(c = 3, d = 4))
 
 
 
