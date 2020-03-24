@@ -138,17 +138,18 @@ diffConditionMrkrs <- function(
   return(all_markers)
 }
 
+
 # ==== Plot results from diffConditionClust
-diffConditionPlots <- function(seurat_obj, input_path = NULL,
+diffConditionPlots <- function(seurat_obj, input_file = NULL,
   folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE,
   n_genes = 200, n_cores = 4, split = FALSE) {
 
-  if (is.null(input_path)) {
+  if (is.null(input_file)) {
     stop(paste0("Input file with columns Gene.name.uniq ",
       "'cell.type.and.trt' and 'cell.type.ident' required"))
   }
   
-  all_markers <- readRDS(input_path)
+  all_markers <- input_file
   print("Number or results for each combination of treatment and cell type:")
   print(table(all_markers$cell.type.and.trt))
 
