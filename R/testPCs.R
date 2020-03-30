@@ -39,5 +39,3 @@ testPCs <- function(seurat_obj, from_to = 5:10,
 
  # Range of PCs to test
  # Execute
-
-x

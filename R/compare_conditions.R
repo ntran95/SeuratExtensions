@@ -1,7 +1,7 @@
 diffConditionMrkrs <- function(
   seurat_obj, group_clusters = NULL, cell_specific = FALSE,
   n_cores = 1, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE,
-  file_prefix_list = gsub(":|\ ", "-", Sys.time()),
+  cell_group_name = NULL, file_prefix_list = gsub(":|\ ", "-", Sys.time()), 
   file_prefix_collapsed = gsub(":|\ ", "-", Sys.time())) {
   
   if (DefaultAssay(seurat_obj) != "RNA") {
@@ -88,6 +88,10 @@ diffConditionMrkrs <- function(
         diff_results[[i]] <- diff_results[[i]][
           order(-1 * (diff_results[[i]]$pete_score)),]
 
+        if (!is.null(cell_group_name)) {
+          cell_group <- cell_group_name
+        }
+
         diff_results[[i]]$cell.type.and.trt <-
           paste0(paste0(cell_group, "_", trt[i]), collapse = "-")
         
@@ -142,7 +146,7 @@ diffConditionMrkrs <- function(
 # ==== Plot results from diffConditionClust
 diffConditionPlots <- function(seurat_obj, input_file = NULL,
   folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE,
-  n_genes = 200, n_cores = 4, split = FALSE) {
+  n_genes = 200, n_cores = 4, split = FALSE, all_idents = FALSE) {
 
   if (is.null(input_file)) {
     stop(paste0("Input file with columns Gene.name.uniq ",
@@ -203,8 +207,12 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
       genes <- genes[1:n_genes]
 
       for(j in seq_along(seq_nums)) {
-        cell_ident <- gsub("_.*","",
-          all_markers$cell.type.and.trt[ind_range][1])
+        if (all_idents) {
+          cell_ident <- NULL
+        } else {
+          cell_ident <- gsub("_.*","",
+            all_markers$cell.type.and.trt[ind_range][1])
+        }
 
         sub_ind <- seq_nums[j]:(seq_nums[j]+19)
         pop_sub <- population[sub_ind]
@@ -215,7 +223,7 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
         if (NA %in% to_plot) {break}
 
         print(paste0(
-          "generating plots ", seq_nums[j],"-", (seq_nums[j]+19)))
+          "generating plots ", seq_nums[j],"-", (seq_nums[j]+19), " ", ids[i]))
         vln_list <- VlnPlot(seurat_obj, to_plot, pt.size = 0.25,
           idents = cell_ident, cols = trt_colors, combine = FALSE,
           group.by = "data.set")
