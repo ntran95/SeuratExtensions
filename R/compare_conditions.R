@@ -1,8 +1,7 @@
 diffConditionMrkrs <- function(
   seurat_obj, group_clusters = NULL, cell_specific = FALSE,
   n_cores = 1, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE,
-  cell_group_name = NULL, file_prefix_list = gsub(":|\ ", "-", Sys.time()), 
-  file_prefix_collapsed = gsub(":|\ ", "-", Sys.time())) {
+  cell_group_name = NULL, file_prefix = gsub(":|\ ", "-", Sys.time())) {
   
   if (DefaultAssay(seurat_obj) != "RNA") {
     print("Changing default assay to RNA")
@@ -104,11 +103,11 @@ diffConditionMrkrs <- function(
   ) # end mclapply
 
   if (cell_specific) {
-    list_name <- paste0(file_prefix_list, "_marker_list_specific_")
-    collapsed_name <- paste0(file_prefix_collapsed, "_all_markers_specific_")
+    list_name <- paste0(file_prefix, "_marker_list_specific_")
+    collapsed_name <- paste0(file_prefix, "_all_markers_specific_")
   } else {
-    list_name <- paste0(file_prefix_list, "_marker_list_")
-    collapsed_name <- paste0(file_prefix_collapsed, "_all_markers_")
+    list_name <- paste0(file_prefix, "_marker_list_")
+    collapsed_name <- paste0(file_prefix, "_all_markers_")
   }
 
   if (save_raw) {
@@ -147,6 +146,10 @@ diffConditionMrkrs <- function(
 diffConditionPlots <- function(seurat_obj, input_file = NULL,
   folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE,
   n_genes = 200, n_cores = 4, split = FALSE, all_idents = FALSE) {
+
+  if (DefaultAssay(seurat_obj) != "RNA") {
+  stop("Default assay is not RNA")
+  }
 
   if (is.null(input_file)) {
     stop(paste0("Input file with columns Gene.name.uniq ",
