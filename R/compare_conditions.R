@@ -40,7 +40,12 @@ diffConditionMrkrs <- function(
       print(paste0("Number of apply iterations = ",
         iterations, " over ", n_cores, " cores"))
       print(cell_type[n_clust])
-      askYesNo("Proceed?")
+      
+      if (askYesNo("Proceed?")){
+        print("running..")
+      } else {
+        stop("aborting")
+      }
 
       if (is.null(group_clusters)) {
         cell_group <- cell_type[h]
