@@ -142,7 +142,7 @@ diffConditionMrkrs <- function(
 
 
 # ==== Plot results from diffConditionClust
-diffConditionPlots <- function(seurat_obj, input_file = NULL,
+diffConditionPlots <- function(seurat_obj, input_table = NULL,
   folder_prefix = gsub(":|\ ", "-", Sys.time()), short_sig_figs = TRUE,
   n_genes = 200, n_cores = 4, split = FALSE, all_idents = FALSE) {
 
@@ -150,12 +150,12 @@ diffConditionPlots <- function(seurat_obj, input_file = NULL,
   stop("Default assay is not RNA")
   }
 
-  if (is.null(input_file)) {
+  if (is.null(input_table)) {
     stop(paste0("Input file with columns Gene.name.uniq ",
       "'cell.type.and.trt' and 'cell.type.ident' required"))
   }
   
-  all_markers <- input_file
+  all_markers <- input_table
   print("Number or results for each combination of treatment and cell type:")
   print(table(all_markers$cell.type.and.trt))
 
@@ -180,16 +180,16 @@ diffConditionPlots <- function(seurat_obj, input_file = NULL,
     all_markers$cell.type.and.trt)
 
   if (split){
-    dir.create(figurePath(paste0(folder_prefix, "-vln-plots")),
+    dir.create(figurePath(paste0(folder_prefix, "vln-plots")),
       showWarnings = FALSE)
-    dir.create(figurePath(paste0(folder_prefix, "-feat-plots")),
+    dir.create(figurePath(paste0(folder_prefix, "feat-plots")),
       showWarnings = FALSE)
   } else {
-    dir.create(figurePath(paste0(folder_prefix, "-feat-vln-plots")),
+    dir.create(figurePath(paste0(folder_prefix, "feat-vln-plots")),
       showWarnings = FALSE)
   }
 
-parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
+  parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores, 
     function (i) {
 
       ifelse(seq_along(ind_chng[i]) == tail(seq_along(ind_chng),1),
@@ -232,7 +232,7 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
         
         for(k in seq_along(vln_list)) {
           vln_list[[k]] <- vln_list[[k]] + NoLegend() + labs(
-            caption = paste(pop_sub[k], "\n", stats_sub[k])) +
+            caption = paste(pop_sub[k], "\n", stats_sub[j])) +
           theme(plot.caption = element_text(hjust = 0))
         }
 
@@ -241,7 +241,7 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
         
         for(k in seq_along(feat_list)) {
           feat_list[[k]] <- feat_list[[k]] + NoLegend() + NoAxes() + labs(
-            caption = paste(pop_sub[k], "\n", stats_sub[k])) +
+            caption = paste(pop_sub[k], "\n", stats_sub[j])) +
           theme(plot.caption = element_text(hjust = 0))
         }
 
@@ -262,7 +262,7 @@ parallel::mclapply(seq_along(ind_chng), mc.cores = n_cores,
           print(cowplot::plot_grid(plotlist = feat_list))
           dev.off()
         } else {
-          combined_path <- figurePath(paste0(folder_prefix, "-feat-vln-plots/",
+          combined_path <- figurePath(paste0(folder_prefix, "feat-vln-plots/",
             trt_with_index, "_top_", seq_nums[j],
             "-", (seq_nums[j] + 19),"_features.png"))
 

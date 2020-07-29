@@ -28,14 +28,16 @@ testPCs <- function(seurat_obj, from_to = 5:10,
           label = FALSE, label.size = 4, group.by = "data.set",
           cols = trt_colors)
 
+        umap_dataset <- cleanUMAP(umap_dataset)
+
         png(figurePath(paste0("exploratory-PCs/UMAP_", "Dataset",
           length(dims), "_res", res,".png")), width = 14, height = 12,
           units = "in", res = 200)
         print(umap_dataset)
         dev.off()
       }
-    }, mc.cores = n_cores)
-  }
+  }, mc.cores = n_cores)
+}
 
  # Range of PCs to test
  # Execute

@@ -1,4 +1,4 @@
-mcFindMarkers <- function(seurat_obj, file_prefix = "",
+mcFindMarkers <- function(seurat_obj, file_prefix = "", save_table = TRUE,
   save_raw = TRUE, pval_cutoff = 0.05, n_cores = 10) {
   
   if (DefaultAssay(seurat_obj) != "RNA") {
@@ -44,6 +44,13 @@ mcFindMarkers <- function(seurat_obj, file_prefix = "",
 
   marker_table <- dplyr::inner_join(
     marker_subset, gene_info, by = "Gene.name.uniq")
+
+  if(save_table) {
+    save_name <- paste0(file_prefix,
+      "_cluster_marker_table_", script_name,"_.RDS")
+    saveRDS(marker_table, dataPath(save_name))
+    print(paste0("Marker table saved at ", dataPath(save_name)))
+  }
   
   print("table dimensions:")
   print(dim(marker_table))
@@ -54,13 +61,13 @@ mcFindMarkers <- function(seurat_obj, file_prefix = "",
 }
 
 mcPlotMarkers <- function (seurat_obj, diff_results,
-  folder_prefix = "cluster", n_genes = 100, n_cores = 10) {
+  folder_prefix = "cluster-", n_genes = 100, n_cores = 10) {
   
   if (DefaultAssay(seurat_obj) != "RNA") {
     stop("Default assay is not RNA")
   }
   
-  dir.create(figurePath(paste0(folder_prefix, "-top-markers/")),
+  dir.create(figurePath(paste0(folder_prefix, "top-markers/")),
     showWarnings = FALSE)
   
   cell_names <- as.character(unique(Idents(seurat_obj)))
@@ -88,7 +95,7 @@ mcPlotMarkers <- function (seurat_obj, diff_results,
           }
 
           path <- figurePath(paste0(
-            folder_prefix, "-top-markers/", cell_names[i], "_top_",
+            folder_prefix, "top-markers/", cell_names[i], "_top_",
             seq_nums[j], "-", (seq_nums[j] + 19), "_features.png"))
           
           png(path, width = 30, height = 25, units = "in", res = 200)
