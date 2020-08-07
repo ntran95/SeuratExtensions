@@ -232,7 +232,7 @@ diffConditionPlots <- function(seurat_obj, input_table = NULL,
         
         for(k in seq_along(vln_list)) {
           vln_list[[k]] <- vln_list[[k]] + NoLegend() + labs(
-            caption = paste(pop_sub[k], "\n", stats_sub[j])) +
+            caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
 
@@ -241,7 +241,7 @@ diffConditionPlots <- function(seurat_obj, input_table = NULL,
         
         for(k in seq_along(feat_list)) {
           feat_list[[k]] <- feat_list[[k]] + NoLegend() + NoAxes() + labs(
-            caption = paste(pop_sub[k], "\n", stats_sub[j])) +
+            caption = paste(pop_sub[k], "\n", stats_sub[k])) +
           theme(plot.caption = element_text(hjust = 0))
         }
 
