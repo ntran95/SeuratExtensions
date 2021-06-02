@@ -1,7 +1,7 @@
 diffConditionMrkrs <- function(
   seurat_obj, group_clusters = NULL, cell_specific = FALSE,
   n_cores = 1, save_raw = TRUE, pval_cutoff = 0.05, save_collapsed = TRUE,
-  cell_group_name = NULL, file_prefix = gsub(":|\ ", "-", Sys.time())) {
+  cell_group_name = NULL, file_prefix = gsub(":|\ ", "-", Sys.time()), complete_gene_tbl =FALSE) {
   
   if (DefaultAssay(seurat_obj) != "RNA") {
     print("Changing default assay to RNA")
@@ -9,11 +9,9 @@ diffConditionMrkrs <- function(
   }
 
   if (cell_specific) {
-    marker_table <- readRDS(dataPath(paste0(
-      "Clusters_anchored_DF", script_name,"_.RDS")))
-    folder <- paste0("cell_specific-diff-", gsub(":|\ ", "-", Sys.time()),"/")
+    folder <- paste0("cell-specific-diff-", gsub(":|\ ", "-", Sys.time()),"/")
   } else {
-    folder <- paste0("cell_type-diff-", gsub(":|\ ", "-", Sys.time()),"/")
+    folder <- paste0("cell-type-diff-", gsub(":|\ ", "-", Sys.time()),"/")
   }
 
   dir.create(figurePath(folder), showWarnings = FALSE)
@@ -47,21 +45,23 @@ diffConditionMrkrs <- function(
         cell_group <- cell_type[n_clust]
       }
 
-      for(i in seq_along(trt_cnt)) {
-        trt_BCs[[trt_cnt[i]]] <- rownames(meta[
-          meta$data.set == trt[i] & meta$cell.type.ident %in% cell_group,])
-        trt_BCs[[trt_cnt[i] + 1]] <- rownames(meta[
-          !meta$data.set == trt[i] & meta$cell.type.ident %in% cell_group,])
+      if (cell_specific){
+        for(i in seq_along(trt_cnt)){
+          trt_BCs[[trt_cnt[i]]] <- rownames(meta[
+            meta$data.set == trt[i] & meta$cell.type.ident %in% cell_group,])
+          trt_BCs[[trt_cnt[i] + 1]] <- rownames(meta[
+            !(meta$data.set == trt[i] & meta$cell.type.ident %in% cell_group),])
+        }
+      } else {
+        for(i in seq_along(trt_cnt)) {
+          trt_BCs[[trt_cnt[i]]] <- rownames(meta[
+            meta$data.set == trt[i] & meta$cell.type.ident %in% cell_group,])
+          trt_BCs[[trt_cnt[i] + 1]] <- rownames(meta[
+            !meta$data.set == trt[i] & meta$cell.type.ident %in% cell_group,])
+        }
       }
 
       diff_results <- list() # initalize list
-
-      if (cell_specific) {
-        cell_type_markers <- marker_table$Gene.name.uniq[
-          marker_table$cell.type.ident %in% cell_group]
-      } else {
-        cell_type_markers <- NULL
-      }
 
       for (i in seq_along(trt_cnt)) {
         print("Running FindMarkers:")
@@ -70,9 +70,20 @@ diffConditionMrkrs <- function(
         condition1 <- trt_BCs[[trt_cnt[i]]]
         condition2 <- trt_BCs[[trt_cnt[i] + 1]]
         
-        diff_results[[i]] <- FindMarkers(seurat_obj, only.pos = FALSE,
-          ident.1 = condition1, ident.2 = condition2, logfc.threshold = 0.25,
-          features = cell_type_markers)
+        #ddiaz originalhead
+        # diff_results[[i]] <- FindMarkers(seurat_obj, only.pos = FALSE,
+        #   ident.1 = condition1, ident.2 = condition2, logfc.threshold = 0.25)
+        # 
+        if(complete_gene_tbl){
+          diff_results[[i]] <- FindMarkers(seurat_obj, only.pos = FALSE,
+           ident.1 = condition1, ident.2 = condition2, logfc.threshold = 0,
+           min.cells.group = 0, 
+           min.cells.feature = 0,
+           min.pct = 0)
+        }else{
+          diff_results[[i]] <- FindMarkers(seurat_obj, only.pos = FALSE,
+         ident.1 = condition1, ident.2 = condition2, logfc.threshold = 0.25)
+        }
       }
 
       for (i in seq_along(trt_cnt)) {
