@@ -5,7 +5,11 @@ testPCs <- function(seurat_obj,
                     group.by = "data.set",
                     n_cores = 10, 
                     res = 1.2,
-                    genes = NULL) {
+                    genes = NULL,
+                    ncol = 4,
+                    nrow = 4,
+                    export_findmarkers = FALSE,
+                    save = FALSE) {
   dir.create(figurePath("exploratory-PCs/"))
   dir.create(figurePath(paste0("exploratory-PCs/dims_", 
                                min(from_to), "_to_", max(from_to),
@@ -16,7 +20,7 @@ testPCs <- function(seurat_obj,
     dims <- c(1:i)
     seurat_obj <- FindNeighbors(seurat_obj, dims = dims, k.param = 20)
     seurat_obj <- FindClusters(seurat_obj, resolution = res)
-    seurat_obj <- RunUMAP(seurat_obj, dims = dims)
+    seurat_obj <- RunUMAP(seurat_obj, dims = dims, reduction = "pca")
     
     seurat_obj <- BuildClusterTree(seurat_obj,
                                    reorder = TRUE, reorder.numeric = TRUE)
@@ -26,7 +30,10 @@ testPCs <- function(seurat_obj,
                                      pt.size = 0.20,
                              label = TRUE, label.size = 4)
     
-    umap_clusters <- cleanUMAP(umap_clusters)
+    umap_clusters <- cleanUMAP(umap_clusters) +
+                  ggtitle(paste0("UMAP by clusters dim 1",
+                     " to ", max(dims), ", resolution ", res)) +
+      theme(plot.title = element_text(hjust = 0.5))
     
     png(figurePath(paste0("exploratory-PCs/dims_", 
                           min(from_to), "_to_", max(from_to),
@@ -60,17 +67,20 @@ testPCs <- function(seurat_obj,
                                      min(from_to), "_to_", max(from_to),
                                      "_res_", res, "/", "FeaturePlots", "_",
                                      "dims_", max(dims), "_res_", res,".png")),
-        plot = plot_list,ncol = 4,base_asp = .25)
+        plot = plot_list,ncol = ncol, nrow =nrow)
       
     }
     
     if(include_conditions) {
       umap_dataset <- DimPlot(seurat_obj, reduction = "umap",
                                       pt.size = 0.25,
-                              label = TRUE, label.size = 4, 
+                              label = FALSE, label.size = 4, 
                               group.by = group.by)
       
-      umap_dataset <- cleanUMAP(umap_dataset)
+      umap_dataset <- cleanUMAP(umap_dataset)+
+        ggtitle(paste0("UMAP by ", group.by," dim 1",
+                       " to ", max(dims), ", resolution ", res)) +
+        theme(plot.title = element_text(hjust = 0.5))
       
       png(figurePath(paste0("exploratory-PCs/dims_", 
                             min(from_to), "_to_", max(from_to),
@@ -80,8 +90,8 @@ testPCs <- function(seurat_obj,
           units = "in", res = 300)
       print(umap_dataset)
       dev.off()
-    }
-    
+
+        
    # FeaturePlot of nFeature_RNA, heuristic approach to determining whether 
     #clustering is influenced by cell quality. 
     #use to determine overclustering bc communitites will aggregate by high and 
@@ -91,6 +101,11 @@ testPCs <- function(seurat_obj,
                    pt.size = 0.25,
                    label = TRUE,label.size = 2) + NoAxes()
   
+  f <- f +
+    ggtitle(paste0("Features per cell dim 1",
+                   " to ", max(dims), ", resolution ", res)) +
+    theme(plot.title = element_text(hjust = 0.5))
+  
   png(figurePath(paste0("exploratory-PCs/dims_", 
                         min(from_to), "_to_", max(from_to),
                         "_res_", res, "/", "FeaturePlot_by_nFeature", "_",
@@ -99,6 +114,72 @@ testPCs <- function(seurat_obj,
       units = "in", res = 300)
   print(f)
   dev.off()
+  
+  #export all UMAP into a cowplot grid
+  umap_list <- cowplot::plot_grid(plotlist = list(umap_clusters, umap_dataset, f))
+  
+  cowplot::save_plot(
+    filename = figurePath(paste0("exploratory-PCs/dims_", 
+                                 min(from_to), "_to_", max(from_to),
+                                 "_res_", res, "/", "all_UMAP_combined_grid",
+                                 "_", "dims_", max(dims), "_res_", res,".png")),
+    plot = umap_list,nrow =2, base_height = 7.71)
+    }
+    
+  #  # FeaturePlot of nFeature_RNA, heuristic approach to determining whether 
+  #   #clustering is influenced by cell quality. 
+  #   #use to determine overclustering bc communitites will aggregate by high and 
+  #   #low nFeature_RNA
+    
+  # f <- FeaturePlot(seurat_obj,features = "nFeature_RNA", 
+  #                  pt.size = 0.25,
+  #                  label = TRUE,label.size = 2) + NoAxes()
+  
+  # f <- f +
+  #   ggtitle(paste0("Features per cell dim 1",
+  #                  " to ", max(dims), ", resolution ", res)) +
+  #   theme(plot.title = element_text(hjust = 0.5))
+  
+  # png(figurePath(paste0("exploratory-PCs/dims_", 
+  #                       min(from_to), "_to_", max(from_to),
+  #                       "_res_", res, "/", "FeaturePlot_by_nFeature", "_",
+  #                       "dims_", max(dims), "_res_", res,".png")),
+  #     width = 14, height = 12,
+  #     units = "in", res = 300)
+  # print(f)
+  # dev.off()
+  
+  # #export all UMAP into a cowplot grid
+  # umap_list <- cowplot::plot_grid(plotlist = list(umap_clusters, umap_dataset, f))
+  
+  # cowplot::save_plot(
+  #   filename = figurePath(paste0("exploratory-PCs/dims_", 
+  #                                min(from_to), "_to_", max(from_to),
+  #                                "_res_", res, "/", "all_UMAP_combined_grid",
+  #                                "_", "dims_", max(dims), "_res_", res,".png")),
+  #   plot = umap_list,nrow =2, base_height = 7.71)
+
+  if(export_findmarkers){
+    DefaultAssay(seurat_obj) <- "RNA"
+
+    Idents(seurat_obj) <- "tree.ident"
+
+    cluster_tbl <- FindAllMarkers(seurat_obj)
+
+    marker_tbl <- SeuratExtensions::modify_marker_tbl(marker_tbl = cluster_tbl,
+                                    findAllMarkers = TRUE,
+                                    ident.1 = NULL )
+
+    marker_tbl_list <- split(marker_tbl, marker_tbl$cluster)
+    names(marker_tbl_list) <- paste0("cluster_", names(marker_tbl_list))
+
+    write_to_xlsx_multitab(marker_tbl_list, names(marker_tbl_list),
+                      file = figurePath(paste0("exploratory-PCs/dims_", 
+                        min(from_to), "_to_", max(from_to),
+                        "_res_", res, "/", "cluster_marker_tbl", "_",
+                        "dims_", max(dims), "_res_", res,".xlsx")))
+
+  }
   
   if(save){
     saveRDS(seurat_obj, file = dataPath(paste0(

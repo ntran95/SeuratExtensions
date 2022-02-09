@@ -1,43 +1,58 @@
-hmap <- function(seurat_obj, genes, ident = "cell.type.ident"){
+hmap <- function(seurat_obj, genes, 
+                 group.by = "cell.type.ident"){
   dotplot <- Seurat::DotPlot(seurat_obj, features = genes,
-                     group.by = ident)
+                             group.by = group.by)
   
-  g <- ggplot(dotplot$data, aes(id, features.plot,fill= avg.exp.scaled, 
-                                width = 2, height = 2)) +
-    geom_tile(color = "gray", size = 1) +
+  plot_df <- dotplot$data
+  
+  
+  g <-  ggplot(plot_df) +
+    geom_tile(aes(id, features.plot,fill= avg.exp.scaled, width = 1, height = 1),
+              color = "gray", size = 1) +
     scale_fill_distiller(
       palette = "RdYlBu") +
-    theme(axis.text.x = element_text(angle = 90,
-                                     vjust = 0.5, 
-                                     hjust=.5,
-                                     size = 13),
+    hrbrthemes::theme_ipsum(base_family = "sans", grid = FALSE) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=.5,size = 13),
           axis.title.y.right = element_text(size=13),
-          strip.text.x  = element_text(vjust = 0.5, 
-                                       hjust=.5,
-                                       size = 12),
+          panel.spacing = unit(.35, "lines"),
+          strip.text.x  = element_text(vjust = 0.5, hjust=.5,size = 12),
           axis.title.x = element_blank(),
           axis.title.y = element_blank()) +
-  scale_x_discrete(expand=c(0,0)) + #expand tile 
-    scale_y_discrete(expand=c(0,0))+ #expand tile +
-  ylim(rev(levels(dotplot$data$features.plot))) 
+    ylim(rev(levels(plot_df$features.plot))) 
   
-  if(ident == "cell.type.ident.by.data.set"){
-    dotplot$data$groupIdent <- gsub("(.+?)(\\_.*)", "\\1",dotplot$data$id)
-    dotplot$data$groupIdent <- factor(dotplot$data$groupIdent,levels=levels(seurat_obj$cell.type.ident))
+  if(group.by == "cell.type.ident.by.data.set"){
+    plot_df$groupIdent <- gsub("(.+?)(\\_.*)", "\\1",plot_df$id)
+    plot_df$groupIdent <- factor(plot_df$groupIdent,
+                                 levels=levels(seurat_obj$cell.type.ident))
     
-    g <- ggplot(dotplot$data, aes(id, features.plot,fill= avg.exp.scaled, width = 1, height = 1)) +
-      geom_tile(color = "gray", size = 1) +
-      scale_fill_distiller(
-        palette = "RdYlBu") +
-      hrbrthemes::theme_ipsum(base_family = "sans") +
-      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=.5,size = 13),
-            axis.title.y.right = element_text(size=13),panel.spacing = unit(.35, "lines"),
-            strip.text.x  = element_text(vjust = 0.5, hjust=.5,size = 12)) +
-      facet_grid( ~ groupIdent, scales='free_x')+
-      ylim(rev(levels(dotplot$data$features.plot))) +
-      theme_ipsum(base_family = "sans")
-
+    g <-  g  %+% plot_df +
+      facet_grid( ~ groupIdent, scales='free_x') 
+    
+  }else if(group.by == "cell.type.and.trt"){
+    plot_df$groupIdent <- gsub("(.+?)(\\..*)", "\\2",plot_df$id)
+    plot_df$groupIdent <- gsub("^.", "",  plot_df$groupIdent)
+    plot_df$groupIdent <- factor(plot_df$groupIdent,
+                                 levels=levels(seurat_obj$cell.type.ident))
+    g <-  g  %+% plot_df +
+      facet_grid( ~ groupIdent, scales='free_x') 
+  } else if(group.by == "effector.and.trt"){
+    plot_df$groupIdent <- gsub("(.+?)(\\..*)", "\\2",plot_df$id)
+    plot_df$groupIdent <- gsub("^.", "",  plot_df$groupIdent)
+    plot_df$groupIdent <- factor(plot_df$groupIdent,
+                                levels=levels(seurat_obj$effector_groups))
+    g <-  g  %+% plot_df +
+      facet_grid( ~ groupIdent, scales='free_x') 
   }
+  # if(facet_title == "data.set"){
+  #   
+  #   plot_df$groupIdent <- gsub(".*_", "",plot_df$id)
+  #   plot_df$groupIdent <- factor(plot_df$groupIdent,
+  #                                levels=levels(seurat_obj$data.set))
+  #   
+  #   g <-  g  %+% plot_df +
+  #     facet_grid( ~ groupIdent, scales='free_x') 
+  # }
+  
   
   return(g)
   
@@ -131,7 +146,8 @@ volcano_plot <- function(marker_tbl,
   }
   
   # plot adding up all layers we have seen so far
-  vp <- ggplot(data=marker_tbl, aes(x=avg_logFC, y=-log10(p_val), col=diffexpressed, label=label)) +
+  vp <- ggplot(data=marker_tbl, aes(x=avg_logFC, y=-log10(p_val), 
+                                    col=diffexpressed, label=label)) +
     geom_point() + 
     theme_minimal() +
     ggrepel::geom_text_repel() +
@@ -155,6 +171,62 @@ volcano_plot <- function(marker_tbl,
   return(vp)
 }
 
+# ==== gse barplot ====
+#barplot function is not available for BiocManager V3.10 but appears in latest model
+gse_barplot <- function(enrich_obj, showCategory = 10, x_axis = "GeneRatio"){
+  #specify whether to plot by counts of genes or ratio of gene counts/setSize
+  if (x_axis == "geneRatio" || x_axis == "GeneRatio") {
+    x_axis <- "GeneRatio"
+  }
+  else if (x_axis == "count" || x_axis == "Count") {
+    x_axis <- "count"
+  }
+  
+  plot_df <- enrich_obj@result
+  
+  #showCategory <- 40
+  
+  #calculate gene counts for core_enrichment 
+  gene_count<- plot_df %>% 
+    group_by(ID) %>% 
+    summarise(count = sum(stringr::str_count(core_enrichment, "/")) + 1) %>%
+    mutate(count = as.integer(count))
+  
+  plot_df <- left_join(plot_df, gene_count, 
+                       by = c("ID")) %>% 
+    mutate(GeneRatio = as.integer(count)/setSize)
+  
+  plot_df <- plot_df[order(plot_df$GeneRatio,
+                           plot_df$count,decreasing = TRUE),]
+  
+  #label activated/suppressed terms
+  plot_df$group <- "Activated"
+  if(any(plot_df$NES <0)){
+    #NES measures up and down reg genes
+    plot_df[plot_df$NES < 0, ]$group <- "Suppressed"  
+  }
+  
+  #subset top showCategory
+  plot_df_sub <- plot_df %>% group_by(group) %>% dplyr::slice(1:showCategory)
+  
+  plot_df_sub$Description <- factor(plot_df_sub$Description,
+                                    levels = plot_df_sub$Description)
+  
+  #aes_string allows aes to read in character values passed from parameters
+  p <-ggplot(data = plot_df_sub,
+             aes_string(x = x_axis, y = "Description")) +
+    geom_bar(stat='identity', aes(fill = p.adjust)) +
+    scale_fill_gradient(low = "purple", high = "red") + 
+    facet_grid( ~ group) +
+    scale_y_discrete(limits = rev(levels(plot_df_sub$Description)))
+  
+  
+  return(p)
+  
+}
+
+
+# ==== plot all enrichment graphs from clusterProfiler ====
 #plot all standard plot output from GSEA analysis
 make_enrich_plot <- function(enrich_obj,
                              marker_tbl, 
@@ -164,7 +236,8 @@ make_enrich_plot <- function(enrich_obj,
                              analysis.type = c("GSEA", "KEGG", "REACTOME"),
                              is.enrich.reactome = F , 
                              save = T,
-                            color_by = "p.adjust") {
+                              color_by = "p.adjust",
+                              x_axis = "count") {
   
   require(DOSE)
   
@@ -197,10 +270,12 @@ make_enrich_plot <- function(enrich_obj,
     r <- NULL
     
     if(save){
-      pdf(figurePath(paste0(dir_name, "/", dir_name_sub, "/",
-                            analysis.type,"_heatplot_",dir_name_sub, ".pdf")),
+      png(figurePath(paste0(dir_name, "/", dir_name_sub, "/",
+                            analysis.type,"_heatplot_",dir_name_sub, ".png")),
           width = 14,
-          height = 8)
+          height = 8,
+          units = "in",
+          res = 300)
       print(rh)
       dev.off()
     }
@@ -224,24 +299,91 @@ make_enrich_plot <- function(enrich_obj,
                                     unique(marker_tbl$ident)),
                   x = "enrichment distribution")
     
+    b <- gse_barplot(enrich_obj = enrich_obj,
+                     showCategory=showCategory,
+                     x_axis = x_axis)
+
+    b <- b + labs(title = title,
+                 subtitle = paste0("Analysis: ",
+                                   unique(marker_tbl$ident)))
+    
     if(save){
-      pdf(figurePath(paste0(dir_name, "/", dir_name_sub, "/",
-                            analysis.type,"_dotplot_",dir_name_sub, ".pdf")),
+      png(figurePath(paste0(dir_name, "/", dir_name_sub, "/",
+                            analysis.type,"_dotplot_",dir_name_sub, ".png")),
           width = 14,
-          height = 8)
+          height = 8,
+          units = "in",
+          res = 300)
       print(d)
       dev.off()
   
-      pdf(figurePath(paste0(dir_name, "/", dir_name_sub, "/",
-                            analysis.type,"_ridgeplot_",dir_name_sub, ".pdf")),
+      png(figurePath(paste0(dir_name, "/", dir_name_sub, "/",
+                            analysis.type,"_ridgeplot_",dir_name_sub, ".png")),
           width = 14,
-          height = 8)
+          height = 8,
+          units = "in",
+          res = 300)
       print(r)
       dev.off()
+      
+      png(figurePath(paste0(dir_name, "/", dir_name_sub, "/",
+                            analysis.type,"_barplot_",dir_name_sub, ".png")),
+          width = 14,
+          height = 8,
+          units = "in",
+          res = 300)
+      print(b)
+      dev.off()
+      
+      
     }
     
   }
 
-  return(list(dotplot = d, ridgeplot = r, heatplot = rh))
+  return(list(dotplot = d, ridgeplot = r, barplot = b, heatplot = rh))
 
+}
+
+# make expression line plots by timepoints
+
+line_plots_by_time <- function(seurat_obj, genes, group.by = "samples"){
+  require(reshape2)
+  
+  plotting_df <- 
+    SeuratExtensions::get_expression_tbl(seurat_obj = seurat_obj,
+                                         genes = genes,
+                                         idents = group.by, 
+                                         slot = "data"
+    )
+  
+  plotting_df <- melt(plotting_df)
+  
+  names(plotting_df)[names(plotting_df) == "variable"] <- "ident"
+  names(plotting_df)[names(plotting_df) == "value"] <- "expression"
+  
+  plotting_df$data.set <- gsub("(.+?)(\\_.*)", "\\1",plotting_df$ident)
+  plotting_df$data.set <- factor(plotting_df$data.set, 
+                                 levels = levels(obj_integrated$data.set))
+  
+  plotting_df$Treatment <- gsub(".*_", "\\1",plotting_df$ident)
+  plotting_df$Treatment <- factor(plotting_df$Treatment, 
+                                  levels = levels(seurat_obj$treatment))
+  
+  
+  plotting_df$scaled.exp <-  scale(plotting_df$expression)
+  
+  lp <- ggplot(data=plotting_df,
+               aes(x=data.set,
+                   y=scaled.exp, 
+                   colour=Treatment,  
+                   group = Treatment)) +
+    geom_line() +
+    geom_point() +
+    facet_wrap(~ Gene.name.uniq, ncol = 2) +
+    ylab(label = "Scaled Average Expression") + 
+    xlab(label = "Time") +
+    theme(strip.text = element_text(face = "italic"))
+  
+  return(lp)
+  
 }

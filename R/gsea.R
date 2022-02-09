@@ -121,7 +121,7 @@ add_gsea_to_marker_tbl <- function(marker_tbl,
     
     #rename columns
     gsea_cols <- 
-      paste0("GSEA.", colnames(gse_results_collapse[,c(2:3)]))
+      paste0("GO", colnames(gse_results_collapse[,c(2:3)]))
     
     colnames(gse_results_collapse)[2:3] <- gsea_cols
     

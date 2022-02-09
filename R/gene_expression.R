@@ -1,4 +1,4 @@
-get_expression_tbl <- function(seurat_obj, genes, idents, slot){
+get_expression_tbl <- function(seurat_obj, genes, idents, slot = "data"){
   Idents(seurat_obj) <- idents
   
   avg.mtx <-  Seurat::AverageExpression(object = seurat_obj,

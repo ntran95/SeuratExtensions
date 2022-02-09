@@ -156,6 +156,150 @@ mcPlotMarkers <- function (seurat_obj, diff_results,
   )
 }
 
+# near same plotting function as mcPlotMarkers() that does not use mclappy()
+top_n_featureplots <- function(seurat_obj,
+                              marker_tbl, 
+                              n_genes = 50, 
+                              dir_name = NULL,
+                              folder_prefix = "feature-plot",
+                              shape.by = NULL,
+                              label = TRUE,
+                              group.by = "tree.ident",
+                              split.by = NULL){
+  # featureplots
+  n_genes <- n_genes
+  seq_nums <- seq(1, n_genes, by = 20)
+  n_ident <- seq_along(unique(marker_tbl$ident))
+
+  #group cells by idents
+  Idents(seurat_obj) <- group.by
+
+  if(!is.null(dir_name)){
+    dir.create(figurePath(paste0(dir_name)),
+             showWarnings = FALSE)
+  }
+
+  dir.create(figurePath(paste0(dir_name, "/",
+                               folder_prefix, "-top-markers/")),
+             showWarnings = FALSE)
+  for (i in seq_along(n_ident)) {
+    #order by pete_score in ascending order 
+    #marker_tbl <-marker_tbl[order(marker_tbl$pete_score,decreasing = T),]
+    
+    genes <- marker_tbl$Gene.name.uniq
+    
+    stats <- paste0("p-value: ", signif(marker_tbl$p_val,digits = 3), ", ",
+                    "avg. logFC: ", signif(marker_tbl$avg_logFC,digits = 3), ", ",
+                    "pct.1: ", marker_tbl$pct.1, ", ",
+                    "pct.2: ", marker_tbl$pct.2, ", ",
+                    "pete_score: ", signif(marker_tbl$pete_score,3))
+    population <- marker_tbl$ident
+    
+    for(j in 1:length(seq_nums)) {
+      sub_ind <- seq_nums[j]:(seq_nums[j]+19)
+      pop_sub <- population[sub_ind]
+      stats_sub <- stats[sub_ind]
+      
+      to_plot <- genes[seq_nums[j]:(seq_nums[j] + 19)]
+      
+      if (NA %in% to_plot) {break}
+      
+      f <- Seurat::FeaturePlot(seurat_obj, to_plot,
+                               reduction = "umap", 
+                               pt.size = 0.25, 
+                               combine = FALSE,
+                               split.by = split.by,
+                               label = label)
+      for(k in 1:length(f)) {
+        f[[k]] <- f[[k]] + NoLegend() + NoAxes() +
+          labs( caption = paste(pop_sub[k], "\n", stats_sub[k])) +
+          theme(plot.caption = element_text(hjust = 0))
+      }
+      
+      path <- figurePath(paste0(dir_name, "/", folder_prefix, "-top-markers/", 
+                                unique(marker_tbl$ident), "_top_",
+                                seq_nums[j], "-", (seq_nums[j] + 19), 
+                                "_features.png"))
+      
+      png(path, width = 40, height = 35, units = "in", res = 300)
+      print(cowplot::plot_grid(plotlist = f))
+      dev.off()
+    } 
+  }
+}
+
+top_n_dotplot <- function(seurat_obj,
+                              marker_tbl, 
+                              n_genes = 50, 
+                              dir_name = NULL,
+                              folder_prefix = "dot-plot",
+                              shape.by = NULL,
+                              label = TRUE,
+                              group.by = "tree.ident",
+                              split.by = NULL){
+  n_genes <- n_genes
+  seq_nums <- seq(1, n_genes, by = 20)
+  n_ident <- seq_along(unique(marker_tbl$ident))
+
+  #group cells by idents
+  Idents(seurat_obj) <- group.by
+
+  if(!is.null(dir_name)){
+    dir.create(figurePath(paste0(dir_name)),
+             showWarnings = FALSE)
+  }
+
+  dir.create(figurePath(paste0(dir_name, "/",
+                               folder_prefix, "-top-markers/")),
+             showWarnings = FALSE)
+  for (i in seq_along(n_ident)) {
+    #order by pete_score in ascending order 
+    #marker_tbl <-marker_tbl[order(marker_tbl$pete_score,decreasing = T),]
+    
+    genes <- marker_tbl$Gene.name.uniq
+    
+    stats <- paste0("p-value: ", signif(marker_tbl$p_val,digits = 3), ", ",
+                    "avg. logFC: ", signif(marker_tbl$avg_logFC,digits = 3), ", ",
+                    "pct.1: ", marker_tbl$pct.1, ", ",
+                    "pct.2: ", marker_tbl$pct.2, ", ",
+                    "pete_score: ", signif(marker_tbl$pete_score,3))
+    population <- marker_tbl$ident
+    
+    for(j in 1:length(seq_nums)) {
+      sub_ind <- seq_nums[j]:(seq_nums[j]+19)
+      pop_sub <- population[sub_ind]
+      stats_sub <- stats[sub_ind]
+      
+      to_plot <- genes[seq_nums[j]:(seq_nums[j] + 19)]
+      
+      if (NA %in% to_plot) {break}
+      
+      f <- Seurat::DotPlot(seurat_obj,
+                           features = rev(to_plot), #or else genes start at bottom
+                           group.by = group.by,
+                           split.by = split.by,
+                           cols = "RdYlBu")
+
+      f <- f + coord_flip() + theme(
+        axis.text.x = element_text(angle = 90, hjust = 1))
+      # for(k in 1:length(f)) {
+      #   f[[k]] <- f[[k]] + 
+      #     labs( caption = paste(pop_sub[k], "\n", stats_sub[k])) +
+      #     theme(plot.caption = element_text(hjust = 0))
+      # }
+      
+      path <- figurePath(paste0(dir_name, "/", folder_prefix, "-top-markers/", 
+                                unique(marker_tbl$ident), "_top_",
+                                seq_nums[j], "-", (seq_nums[j] + 19), 
+                                "_dotplot.png"))
+      
+      png(path, width = 12, height = 10, units = "in", res = 300)
+      print(f)
+      dev.off()
+    } 
+  }
+}
+
 modify_marker_tbl <- function(marker_tbl, 
                               findAllMarkers = FALSE, 
                               ident.1,
@@ -172,7 +316,7 @@ modify_marker_tbl <- function(marker_tbl,
     marker_tbl <- marker_tbl[marker_tbl$p_val < pval_cutoff,]
     #specify which groups to compare to
     if (is.null(ident.2) == TRUE){
-      marker_tbl$ident <- paste0(ident.1, "_vs_", "all other cells")
+      marker_tbl$ident <- paste0(ident.1, "_vs_", "all_other_cells")
     }else{
       marker_tbl$ident <- paste0(ident.1, "_vs_", ident.2)
     }
@@ -185,6 +329,9 @@ modify_marker_tbl <- function(marker_tbl,
                           all.x = TRUE)
       marker_tbl <- marker_tbl[order(marker_tbl$cluster, marker_tbl$avg_logFC,
                                      decreasing = TRUE),]
+      
+      marker_tbl <- marker_tbl[order(marker_tbl$cluster), ]
+      
       
       names(marker_tbl)[names(marker_tbl) == "gene"] <- "Gene.name.uniq"
       
@@ -219,8 +366,11 @@ modify_marker_tbl <- function(marker_tbl,
     
     
     #specify which groups to compare to
-    if (is.null(ident.2) == TRUE){
-      marker_tbl$ident <- paste0(ident.1, "_vs_", "all other cells")
+    if (findAllMarkers){
+      marker_tbl$ident <- 
+        paste0(marker_tbl$cluster, "_vs_", "all_other_cells")
+    }else if(is.null(ident.2)== TRUE){
+      marker_tbl$ident <- paste0(ident.1, "_vs_", "all_other_cells")
     }else{
       marker_tbl$ident <- paste0(ident.1, "_vs_", ident.2)
     }
